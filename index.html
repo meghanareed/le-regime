@@ -462,6 +462,16 @@ const PHASES = [
   {wk:[13,999],name:'Maintenance', freq:4, nights:[0,2,4,6],       desc:'4 nights / week',    micro:'Long-term sustainable rhythm. This is the finish line that lasts.'},
 ];
 function phaseForWeek(w){ return PHASES.find(p=>w>=p.wk[0]&&w<=p.wk[1]) || PHASES[PHASES.length-1]; }
+/* the ordonnance progress bar — a ramp toward week 12, then a live count toward the payoff milestones */
+function planTrack(w){
+  if(w<=12) return {label:'12-week plan',  right:`${w} / 12`,        pct:Math.round(w/12*100), fill:'var(--amber)'};
+  if(w<26)  return {label:'to 6 months',   right:`week ${w} / 26`,   pct:Math.round(w/26*100), fill:'var(--green)'};
+  if(w<52)  return {label:'to 1 year',     right:`week ${w} / 52`,   pct:Math.round(w/52*100), fill:'var(--green)'};
+  const months=Math.round(w/4.345);
+  const years=Math.floor(w/52), rem=Math.round((w%52)/4.345);
+  const inLabel = years>=1 ? `${years}y ${rem}m in` : `${months} months in`;
+  return {label:'maintenance', right:inLabel, pct:100, fill:'var(--green)'};
+}
 
 /* ---------- state ---------- */
 const KEY='leRegime.v1';
@@ -595,7 +605,7 @@ function renderToday(){
   const badgeLabel = nt==='a313'?'A313 night':(nt==='rest'?'barrier rest':'off night · treat');
   const badgeCls = nt==='a313'?'a313':(nt==='rest'?'rest':'recovery');
   // phase progress within 12-week plan
-  const pct = Math.min(100, Math.round(Math.min(w,12)/12*100));
+  const track = planTrack(w);
   const adj = activeAdjustment(iso);
   const freqLabel = adj ? (adj.kind==='rest' ? 'paused · barrier rest' : 'eased one step') : ph.desc;
 
@@ -624,8 +634,8 @@ function renderToday(){
       <div class="rx-line"><span class="k">A313 frequency</span><span class="v warm">${freqLabel}</span></div>
       <div class="rx-line"><span class="k">This evening</span><span class="v">${pmSteps().length} steps</span></div>
       <div class="phase-track">
-        <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-        <div class="cap"><span>12-week plan</span><span>${Math.min(w,12)} / 12</span></div>
+        <div class="bar"><div class="fill" style="width:${track.pct}%;background:${track.fill}"></div></div>
+        <div class="cap"><span>${track.label}</span><span>${track.right}</span></div>
       </div>
     </div>
   </div>`;
