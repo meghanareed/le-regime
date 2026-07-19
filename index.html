@@ -291,6 +291,33 @@ nav.tabs{
 }
 .cross-pulse{animation:pulse 1.6s ease-in-out}
 @keyframes pulse{0%,100%{transform:scale(1)}30%{transform:scale(1.14)}}
+
+/* adjustment banner */
+.adj-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;margin:8px 0 14px;border:1px solid}
+.adj-banner.rest{background:var(--blue-tint);border-color:#CFE0EC}
+.adj-banner.ease{background:var(--amber-tint);border-color:#EFD8B8}
+.adj-ic{width:32px;height:32px;border-radius:9px;background:#fff;display:grid;place-items:center;flex:none}
+.adj-ic svg{width:17px;height:17px}
+.adj-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.adj-tx b{font-size:13px;letter-spacing:-.01em}
+.adj-tx span{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--ink-soft)}
+.adj-end{font-family:'Spline Sans Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-soft);background:#fff;border:1px solid var(--line);padding:7px 11px;border-radius:8px;white-space:nowrap;flex:none}
+
+/* action sheet / modal */
+.modal-ov{position:fixed;inset:0;z-index:100;background:rgba(22,36,61,.34);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
+.modal-ov.show{opacity:1}
+.modal{background:var(--card);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:22px 20px calc(20px + var(--safe-b));transform:translateY(24px);transition:transform .26s cubic-bezier(.2,.72,.28,1);box-shadow:0 -8px 44px rgba(22,36,61,.22)}
+.modal-ov.show .modal{transform:none}
+.modal .grip{width:38px;height:4px;border-radius:100px;background:var(--line);margin:-8px auto 15px}
+.modal-h{font-family:Fraunces;font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:9px;display:flex;align-items:center;gap:10px}
+.modal-h .mic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none}
+.modal-b{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px}
+.modal-b b{color:var(--ink);font-weight:600}
+.modal-actions{display:flex;flex-direction:column;gap:9px}
+.mbtn{padding:13px;border-radius:12px;font-weight:600;font-size:14px;background:var(--line-soft);color:var(--ink);transition:transform .1s}
+.mbtn:active{transform:scale(.985)}
+.mbtn.primary{background:var(--ink);color:#fff}
+.mbtn.ghost{background:transparent;color:var(--ink-faint)}
 </style>
 </head>
 <body>
@@ -424,8 +451,8 @@ const todayISO = ()=> new Date().toISOString().slice(0,10);
 function loadState(){
   let s;
   try{ s = JSON.parse(localStorage.getItem(KEY)); }catch(e){ s=null; }
-  if(!s){ s = { start: todayISO(), logs:{}, opened:{}, journal:[], overrides:{} }; }
-  s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[]; s.overrides = s.overrides||{};
+  if(!s){ s = { start: todayISO(), logs:{}, opened:{}, journal:[], overrides:{}, adjustments:[] }; }
+  s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[]; s.overrides = s.overrides||{}; s.adjustments = s.adjustments||[];
   return s;
 }
 let S = loadState();
@@ -439,11 +466,18 @@ function weekOfPlan(dateStr=todayISO()){
   return Math.max(1, Math.floor(days/7)+1);
 }
 function nightType(dateStr=todayISO()){
-  if(S.overrides[dateStr]) return S.overrides[dateStr];
+  if(S.overrides[dateStr]) return S.overrides[dateStr];        // manual single-night override wins
+  const adj = activeAdjustment(dateStr);
+  if(adj && adj.kind==='rest') return 'rest';                  // barrier rest = every night is a rest night
   const w = weekOfPlan(dateStr);
   const ph = phaseForWeek(w);
   const dow = new Date(dateStr+'T00:00').getDay();
-  return ph.nights.includes(dow) ? 'a313' : 'recovery';
+  let nights = ph.nights;
+  if(adj && adj.kind==='ease'){                                // ease = drop A313 one frequency step
+    const i = PHASES.indexOf(ph);
+    nights = i<=0 ? [] : PHASES[i-1].nights;                   // at the lowest phase, skip A313 entirely
+  }
+  return nights.includes(dow) ? 'a313' : 'recovery';
 }
 function eveningRoutineKey(dateStr=todayISO()){
   const t = nightType(dateStr);
@@ -451,6 +485,29 @@ function eveningRoutineKey(dateStr=todayISO()){
 }
 function fmtDate(dateStr){
   return new Date(dateStr+'T00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+}
+function fmtShort(dateStr){
+  return new Date(dateStr+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+}
+function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function untilSunday(){ const dow=new Date().getDay(); const add=(7-dow)%7; return addDays(add===0?7:add); }
+
+/* ---------- reactive adjustments (symptom → plan change) ---------- */
+function activeAdjustment(dateStr=todayISO()){
+  const hits = S.adjustments.filter(a=>dateStr>=a.from && dateStr<=a.until);
+  return hits.length ? hits[hits.length-1] : null;             // most recent wins
+}
+function applyAdjustment(kind, until, reason){
+  S.adjustments = S.adjustments.filter(a=>a.until >= todayISO()); // clear expired
+  S.adjustments.push({kind, from:todayISO(), until, reason, created:Date.now()});
+  save();
+  switchTab('today');
+  toast(kind==='rest' ? 'Barrier rest set' : 'A313 eased');
+}
+function endAdjustment(){
+  const t=todayISO();
+  S.adjustments = S.adjustments.filter(a=>!(t>=a.from && t<=a.until));
+  save(); switchTab('today'); toast('Back to your normal plan');
 }
 
 /* ---------- log helpers ---------- */
@@ -505,8 +562,21 @@ function renderToday(){
   const badgeCls = nt==='a313'?'a313':(nt==='rest'?'rest':'recovery');
   // phase progress within 12-week plan
   const pct = Math.min(100, Math.round(Math.min(w,12)/12*100));
+  const adj = activeAdjustment(iso);
+  const freqLabel = adj ? (adj.kind==='rest' ? 'paused · barrier rest' : 'eased one step') : ph.desc;
 
-  let html = `
+  let banner='';
+  if(adj){
+    const isRest = adj.kind==='rest';
+    banner = `<div class="adj-banner ${isRest?'rest':'ease'}">
+      <div class="adj-ic">${isRest?REST_IC:EASE_IC}</div>
+      <div class="adj-tx"><b>${isRest?'Barrier rest in effect':'A313 eased'}</b>
+        <span>${adj.reason?adj.reason+' · ':''}until ${fmtShort(adj.until)}</span></div>
+      <button class="adj-end" id="adjEnd">End early</button>
+    </div>`;
+  }
+
+  let html = banner + `
   <div class="script">
     <div class="script-head">
       <div>
@@ -517,7 +587,7 @@ function renderToday(){
     </div>
     <div class="script-body">
       <div class="rx-line"><span class="k">Retinization phase</span><span class="v">wk ${w} · ${ph.name}</span></div>
-      <div class="rx-line"><span class="k">A313 frequency</span><span class="v warm">${ph.desc}</span></div>
+      <div class="rx-line"><span class="k">A313 frequency</span><span class="v warm">${freqLabel}</span></div>
       <div class="rx-line"><span class="k">This evening</span><span class="v">${pmRoutine().steps.length} steps</span></div>
       <div class="phase-track">
         <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
@@ -542,6 +612,8 @@ function renderToday(){
   </div>`;
 
   v.innerHTML=html;
+  const endBtn=v.querySelector('#adjEnd');
+  if(endBtn) endBtn.addEventListener('click',endAdjustment);
   bindRoutineCards(v, iso);
 }
 
@@ -621,6 +693,76 @@ function bindRoutineCards(scope, iso){
 function celebrate(){
   const bc=document.getElementById('brandCross');
   bc.classList.remove('cross-pulse'); void bc.offsetWidth; bc.classList.add('cross-pulse');
+}
+
+/* ---- action-sheet modal ---- */
+function showModal(cfg){
+  closeModal();
+  const ov=document.createElement('div'); ov.className='modal-ov'; ov.id='modalOv';
+  const icon = cfg.icon ? `<span class="mic" style="background:${cfg.iconBg||'var(--blue-tint)'}">${cfg.icon}</span>` : '';
+  ov.innerHTML=`<div class="modal"><div class="grip"></div>
+    <div class="modal-h">${icon}${cfg.title}</div>
+    <div class="modal-b">${cfg.body}</div>
+    <div class="modal-actions">${cfg.actions.map((a,i)=>`<button class="mbtn ${a.cls||''}" data-i="${i}">${a.label}</button>`).join('')}</div>
+  </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('show'));
+  ov.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{
+    const a=cfg.actions[+b.dataset.i]; closeModal(); if(a.onClick) a.onClick();
+  }));
+  ov.addEventListener('click',e=>{ if(e.target===ov) closeModal(); });
+}
+function closeModal(){ const m=document.getElementById('modalOv'); if(m){ m.classList.remove('show'); setTimeout(()=>m.remove(),220);} }
+
+const REST_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#2E5677" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.1-7 8.5-4.1-1.4-7-4.3-7-8.5V6l7-3Z"/></svg>';
+const EASE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#8A5316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 12l6 6 6-6"/></svg>';
+const PURGE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#1C6A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v0M12 8v8M9 12l3 3 3-3"/><circle cx="12" cy="12" r="9"/></svg>';
+
+/* ---- decide whether a logged symptom warrants an offer ---- */
+function maybeSuggestAdjustment(tags){
+  const has=t=>tags.includes(t);
+  if(has('red')||has('stinging')) { suggestRest(tags); return true; }   // strongest: pause everything
+  if(has('peeling')||has('dry'))  { suggestEase(tags); return true; }   // buffer + step down
+  if(has('breakout')||has('purging')) { suggestPurge(); return true; }  // reassure, hold steady
+  return false;
+}
+function suggestRest(tags){
+  const u3=addDays(2), uw=untilSunday();
+  const flagged = tags.filter(t=>['red','stinging','dry','peeling'].includes(t)).join(', ');
+  showModal({
+    title:'Give your barrier a rest?', icon:REST_IC, iconBg:'var(--blue-tint)',
+    body:`You logged <b>${flagged||'irritation'}</b>. The troubleshooting rule for redness or stinging is to pause all actives — cleanse and moisturize only — until skin calms, then ease A313 back in.<br><br>Switch your upcoming evenings to <b>barrier rest</b>?`,
+    actions:[
+      {label:`Rest 3 nights · to ${fmtShort(u3)}`, cls:'primary', onClick:()=>applyAdjustment('rest',u3,flagged||'irritation')},
+      {label:`Rest of week · to ${fmtShort(uw)}`, onClick:()=>applyAdjustment('rest',uw,flagged||'irritation')},
+      {label:'Not now', cls:'ghost'}
+    ]
+  });
+}
+function suggestEase(tags){
+  const u7=addDays(6), uw=untilSunday();
+  const flagged = tags.filter(t=>['peeling','dry'].includes(t)).join(' & ');
+  showModal({
+    title:'Ease off A313 for a bit?', icon:EASE_IC, iconBg:'var(--amber-tint)',
+    body:`You logged <b>${flagged||'dryness'}</b>. The guide says to buffer A313 with moisturizer and drop it down one frequency step — don't push through peeling.<br><br>Reduce A313 by a step until skin settles?`,
+    actions:[
+      {label:`Ease · rest of week · to ${fmtShort(uw)}`, cls:'primary', onClick:()=>applyAdjustment('ease',uw,flagged||'dryness')},
+      {label:`Ease · 7 days · to ${fmtShort(u7)}`, onClick:()=>applyAdjustment('ease',u7,flagged||'dryness')},
+      {label:'Not now', cls:'ghost'}
+    ]
+  });
+}
+function suggestPurge(){
+  const w=weekOfPlan();
+  const inWindow = w>=2 && w<=6;
+  showModal({
+    title:'That’s most likely purging', icon:PURGE_IC, iconBg:'var(--green-tint)',
+    body:`${inWindow?`You're in week ${w} — right in the purge window.`:''} Breakouts in your usual chin and jaw zones are typically A313 surfacing what was already coming, not the retinoid harming you. The move is to <b>hold steady and not add products</b>.<br><br>If it's new areas, cystic, or past week 8, treat it as irritation instead — check troubleshooting.`,
+    actions:[
+      {label:'Got it — hold steady', cls:'primary'},
+      {label:'Open troubleshooting', onClick:()=>switchTab('more')}
+    ]
+  });
 }
 
 /* ---- ROUTINES (reference, all variants) ---- */
@@ -724,7 +866,7 @@ function renderProducts(){
 }
 
 /* ---- PROGRESS ---- */
-const JTAGS=['clearer','calm','glowy','dry','breakout','purging','peeling','red','smooth'];
+const JTAGS=['clearer','calm','glowy','smooth','dry','breakout','purging','peeling','red','stinging'];
 function renderProgress(){
   const v=document.getElementById('v-progress');
   let sel=[];
@@ -747,8 +889,10 @@ function renderProgress(){
   v.querySelector('#jSave').addEventListener('click',()=>{
     const txt=v.querySelector('#jText').value.trim();
     if(!txt && !sel.length){ toast('Add a note or a tag first'); return; }
-    S.journal.unshift({date:todayISO(), t:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), text:txt, tags:[...sel], wk:weekOfPlan()});
-    save(); renderProgress(); toast('Logged');
+    const loggedTags=[...sel];
+    S.journal.unshift({date:todayISO(), t:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), text:txt, tags:loggedTags, wk:weekOfPlan()});
+    save(); renderProgress();
+    if(!maybeSuggestAdjustment(loggedTags)) toast('Logged');
   });
   renderJournal();
 }
