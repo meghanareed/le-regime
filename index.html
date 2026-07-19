@@ -318,6 +318,20 @@ nav.tabs{
 .mbtn:active{transform:scale(.985)}
 .mbtn.primary{background:var(--ink);color:#fff}
 .mbtn.ghost{background:transparent;color:var(--ink-faint)}
+
+/* add-product form */
+.form{display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;margin:-4px -2px 2px;padding:0 2px}
+.form .fl{font-size:11px;font-weight:600;color:var(--ink-soft);margin:10px 0 4px;display:block}
+.form .fl .req{color:var(--red)}
+.form .fi{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--ink);background:var(--paper)}
+.form .fi:focus{outline:none;border-color:var(--blue)}
+.form .frow{display:flex;gap:9px}
+.form .frow>div{flex:1;min-width:0}
+.rt-checks{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:2px}
+.rt-check{display:flex;align-items:center;gap:8px;font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--card)}
+.rt-check input{width:16px;height:16px;accent-color:var(--green)}
+.prod-remove{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;color:var(--ink-faint);background:var(--line-soft)}
+.prod-remove:active{background:var(--red-tint);color:var(--red)}
 </style>
 </head>
 <body>
@@ -405,7 +419,11 @@ const PRODUCTS = [
    color:'#6E9BC0', stars:4, size:'50 ml', lifeDays:90,
    note:'Urea 50% for heels. Nightly on feet as needed — separate from face routine.'},
 ];
-const P = Object.fromEntries(PRODUCTS.map(p=>[p.id,p]));
+let P = {};
+function customList(){ return S.customProducts || []; }
+function isHidden(id){ return (S.hidden||[]).includes(id); }
+function catalogue(){ return PRODUCTS.filter(p=>!isHidden(p.id)).concat(customList()); }
+function rebuildP(){ P = Object.fromEntries(PRODUCTS.concat(customList()).map(p=>[p.id,p])); }
 
 /* ---------- routines ---------- */
 function step(prod, opts={}){return {p:prod, ...opts};}
@@ -448,14 +466,21 @@ function phaseForWeek(w){ return PHASES.find(p=>w>=p.wk[0]&&w<=p.wk[1]) || PHASE
 /* ---------- state ---------- */
 const KEY='leRegime.v1';
 const todayISO = ()=> new Date().toISOString().slice(0,10);
+function normalize(s){
+  if(!s || typeof s!=='object') s = {};
+  s.start = s.start || todayISO();
+  s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[];
+  s.overrides = s.overrides||{}; s.adjustments = s.adjustments||[];
+  s.customProducts = s.customProducts||[]; s.hidden = s.hidden||[];
+  return s;
+}
 function loadState(){
   let s;
   try{ s = JSON.parse(localStorage.getItem(KEY)); }catch(e){ s=null; }
-  if(!s){ s = { start: todayISO(), logs:{}, opened:{}, journal:[], overrides:{}, adjustments:[] }; }
-  s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[]; s.overrides = s.overrides||{}; s.adjustments = s.adjustments||[];
-  return s;
+  return normalize(s);
 }
 let S = loadState();
+rebuildP();
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast('Storage unavailable'); } }
 
 /* ---------- date / phase helpers ---------- */
@@ -522,11 +547,20 @@ function toggleStep(part, idx, dateStr=todayISO()){
   if(i>=0) arr.splice(i,1); else arr.push(idx);
   save();
 }
+function effectiveSteps(key){
+  const base = ROUTINES[key].steps.filter(s=>!isHidden(s.p) && P[s.p]);
+  const extra = customList()
+    .filter(cp=>(cp.routines||[]).includes(key))
+    .map(cp=>({p:cp.id, name:cp.stepLabel||cp.role||'Apply', amount:cp.amount||'', area:cp.area||'', custom:true}));
+  return base.concat(extra);
+}
+function amSteps(){ return effectiveSteps('morning'); }
+function pmSteps(dateStr=todayISO()){ return effectiveSteps(eveningRoutineKey(dateStr)); }
 function amRoutine(){ return ROUTINES.morning; }
 function pmRoutine(dateStr=todayISO()){ return ROUTINES[eveningRoutineKey(dateStr)]; }
 function dayComplete(dateStr=todayISO()){
   const l = dayLog(dateStr);
-  return l.am.length>=amRoutine().steps.length && l.pm.length>=pmRoutine(dateStr).steps.length;
+  return l.am.length>=amSteps().length && l.pm.length>=pmSteps(dateStr).length;
 }
 function streak(){
   let n=0; const d=new Date();
@@ -588,7 +622,7 @@ function renderToday(){
     <div class="script-body">
       <div class="rx-line"><span class="k">Retinization phase</span><span class="v">wk ${w} · ${ph.name}</span></div>
       <div class="rx-line"><span class="k">A313 frequency</span><span class="v warm">${freqLabel}</span></div>
-      <div class="rx-line"><span class="k">This evening</span><span class="v">${pmRoutine().steps.length} steps</span></div>
+      <div class="rx-line"><span class="k">This evening</span><span class="v">${pmSteps().length} steps</span></div>
       <div class="phase-track">
         <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
         <div class="cap"><span>12-week plan</span><span>${Math.min(w,12)} / 12</span></div>
@@ -596,8 +630,8 @@ function renderToday(){
     </div>
   </div>`;
 
-  html += routineCard(amRoutine(),'am',iso);
-  html += routineCard(pmRoutine(),'pm',iso, ph.micro);
+  html += routineCard('morning','am',iso);
+  html += routineCard(eveningRoutineKey(iso),'pm',iso, ph.micro);
 
   // streak strip
   const st=streak();
@@ -628,18 +662,22 @@ function weekDots(){
   return out.join('');
 }
 
-function routineCard(routine, part, iso, micro){
+function routineCard(key, part, iso, micro){
+  const routine = ROUTINES[key];
+  const stepList = effectiveSteps(key);
   const done = dayLog(iso)[part].length;
-  const total = routine.steps.length;
+  const total = stepList.length;
   const complete = done>=total;
   const icon = routine.icon==='sun'?SUN:MOON;
   let steps='';
-  routine.steps.forEach((s,idx)=>{
-    const prod=P[s.p]; const on=isStepDone(part,idx,iso);
+  stepList.forEach((s,idx)=>{
+    const prod=P[s.p]; if(!prod) return;
+    const on=isStepDone(part,idx,iso);
     let meta='';
     if(s.amount) meta+=`<span class="tag">${s.amount}</span>`;
     if(s.area) meta+=`<span class="tag area">${s.area}</span>`;
     if(s.warm) meta+=`<span class="tag warm">${s.warm}</span>`;
+    if(s.custom) meta+=`<span class="tag" style="background:var(--green-tint);color:#1C6A45">yours</span>`;
     steps+=`<div class="step ${on?'on':''}" data-part="${part}" data-idx="${idx}">
       <div class="check">${CHECK}</div>
       <div class="step-body">
@@ -650,7 +688,7 @@ function routineCard(routine, part, iso, micro){
       </div>
     </div>`;
   });
-  return `<div class="routine ${complete?'':''}" data-routine>
+  return `<div class="routine" data-routine>
     <div class="routine-head" data-toggle>
       <div class="title">
         <div class="ic ${routine.icon}">${icon}</div>
@@ -671,8 +709,8 @@ function bindRoutineCards(scope, iso){
       el.classList.toggle('on');
       // update count
       const card=el.closest('[data-routine]');
-      const routine = part==='am'?amRoutine():pmRoutine(iso);
-      const done=dayLog(iso)[part].length, total=routine.steps.length;
+      const total = part==='am'?amSteps().length:pmSteps(iso).length;
+      const done=dayLog(iso)[part].length;
       const cnt=card.querySelector('.count');
       cnt.childNodes[0].textContent=done+'/'+total;
       cnt.classList.toggle('done',done>=total);
@@ -707,10 +745,13 @@ function showModal(cfg){
   </div>`;
   document.body.appendChild(ov);
   requestAnimationFrame(()=>ov.classList.add('show'));
-  ov.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{
-    const a=cfg.actions[+b.dataset.i]; closeModal(); if(a.onClick) a.onClick();
-  }));
+  ov.querySelectorAll('.mbtn').forEach(b=>{
+    const a=cfg.actions[+b.dataset.i];
+    if(a.keep) return;                       // keep-open buttons are wired in onMount
+    b.addEventListener('click',()=>{ closeModal(); if(a.onClick) a.onClick(); });
+  });
   ov.addEventListener('click',e=>{ if(e.target===ov) closeModal(); });
+  if(cfg.onMount) cfg.onMount(ov);
 }
 function closeModal(){ const m=document.getElementById('modalOv'); if(m){ m.classList.remove('show'); setTimeout(()=>m.remove(),220);} }
 
@@ -771,7 +812,7 @@ function renderRoutines(){
   let html='<div class="section-label">the four evenings</div>';
   html+=`<div class="info"><p>Your morning routine is the same every day. Evenings rotate based on where you are in the A313 plan — the Today tab always picks tonight's for you. Here are all of them for reference.</p></div>`;
   ['morning','a313','recovery','rest'].forEach(k=>{
-    html+=staticRoutine(ROUTINES[k]);
+    html+=staticRoutine(k);
   });
   html+='<div class="section-label">seasonal & situational</div>';
   html+=seasonalCard('Travel','Simplify to survive transit & hard water.',[
@@ -796,15 +837,16 @@ function renderRoutines(){
   ]);
   v.innerHTML=html;
 }
-function staticRoutine(r){
+function staticRoutine(key){
+  const r=ROUTINES[key];
   const icon=r.icon==='sun'?SUN:MOON;
   let steps='';
-  r.steps.forEach((s,i)=>{
-    const prod=P[s.p];
+  effectiveSteps(key).forEach((s,i)=>{
+    const prod=P[s.p]; if(!prod) return;
     steps+=`<div class="step"><div class="check" style="border-radius:50%;width:22px;height:22px;border-color:var(--line-soft)"><span class="mono" style="font-size:10px;color:var(--ink-faint)">${i+1}</span></div>
       <div class="step-body"><div class="name">${s.name}</div>
       <div class="prod">${prod.name}</div>
-      <div class="step-meta">${s.amount?`<span class="tag">${s.amount}</span>`:''}${s.area?`<span class="tag area">${s.area}</span>`:''}${s.warm?`<span class="tag warm">${s.warm}</span>`:''}</div>
+      <div class="step-meta">${s.amount?`<span class="tag">${s.amount}</span>`:''}${s.area?`<span class="tag area">${s.area}</span>`:''}${s.warm?`<span class="tag warm">${s.warm}</span>`:''}${s.custom?`<span class="tag" style="background:var(--green-tint);color:#1C6A45">yours</span>`:''}</div>
       ${s.note?`<div class="step-note">${s.note}</div>`:''}</div></div>`;
   });
   return `<div class="routine"><div class="routine-head" style="cursor:default">
@@ -820,15 +862,19 @@ function seasonalCard(title,sub,points){
 /* ---- PRODUCTS ---- */
 function renderProducts(){
   const v=document.getElementById('v-products');
-  let html='<div class="section-label">shelf · tap “opened” to track usage</div>';
-  PRODUCTS.forEach(p=>{
+  let html=`<button class="btn ghost" id="addProdBtn" style="margin:6px 0 14px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Add a product</button>`;
+  html+='<div class="section-label">shelf · tap “opened” to track usage</div>';
+  catalogue().forEach(p=>{
     const opened=S.opened[p.id];
+    const inRoutines=(p.routines||[]).length ? `<span class="prole" style="color:#1C6A45"> · in ${(p.routines||[]).length} routine${p.routines.length>1?'s':''}</span>`:'';
     let usage='';
     if(opened){
       const start=new Date(opened+'T00:00');
       const used=Math.floor((Date.now()-start)/86400000);
-      const remain=p.lifeDays-used;
-      const pct=Math.max(0,Math.min(100,Math.round(used/p.lifeDays*100)));
+      const life=p.lifeDays||90;
+      const remain=life-used;
+      const pct=Math.max(0,Math.min(100,Math.round(used/life*100)));
       let col=remain<0?'var(--red)':(remain<=14?'var(--amber)':'var(--green)');
       let status = remain<0 ? `<b style="color:var(--red)">Likely empty</b> · replace now`
                 : remain<=14 ? `<b>~${remain} days</b> left · reorder soon`
@@ -845,24 +891,118 @@ function renderProducts(){
     }
     html+=`<div class="prod-card">
       <div class="prod-top">
-        <div class="prod-thumb" style="background:${p.color}">${p.brand[0]}</div>
+        <div class="prod-thumb" style="background:${p.color||'#6E9BC0'}">${(p.brand||p.name||'·')[0]}</div>
         <div class="prod-info">
-          <div class="pname">${p.name}</div>
-          <div class="prole">${p.brand} · ${p.role} · ${p.size}</div>
-          <div class="stars">${'★'.repeat(p.stars)}${'☆'.repeat(5-p.stars)}</div>
+          <div class="pname">${p.name}${p.custom?' <span class="tag" style="background:var(--green-tint);color:#1C6A45;font-size:9px">yours</span>':''}</div>
+          <div class="prole">${p.brand||''}${p.brand?' · ':''}${p.role||''} · ${p.size||''}${inRoutines}</div>
+          <div class="stars">${'★'.repeat(p.stars||0)}${'☆'.repeat(5-(p.stars||0))}</div>
         </div>
+        <button class="prod-remove" data-remove="${p.id}" title="Remove">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/></svg>
+        </button>
       </div>
-      <p style="font-size:12.5px;color:var(--ink-soft);margin-top:11px;line-height:1.5">${p.note}</p>
+      ${p.note?`<p style="font-size:12.5px;color:var(--ink-soft);margin-top:11px;line-height:1.5">${p.note}</p>`:''}
       ${usage}
     </div>`;
   });
+  // hidden / removed built-ins → restore
+  const hid=(S.hidden||[]).map(id=>PRODUCTS.find(p=>p.id===id)).filter(Boolean);
+  if(hid.length){
+    html+='<div class="section-label">removed · tap to restore</div>';
+    hid.forEach(p=>{
+      html+=`<div class="prod-card" style="opacity:.7;display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+        <div><div class="pname" style="font-size:13.5px">${p.name}</div><div class="prole">${p.brand} · ${p.role}</div></div>
+        <button class="btn-sm" data-restore="${p.id}">Restore</button></div>`;
+    });
+  }
   v.innerHTML=html;
+
+  v.querySelector('#addProdBtn').addEventListener('click',openAddProduct);
   v.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>{
     S.opened[b.dataset.open]=todayISO(); save(); renderProducts(); toast('Marked opened today');
   }));
   v.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>{
     if(confirm('Reset the opened date for this product?')){ delete S.opened[b.dataset.reset]; save(); renderProducts(); }
   }));
+  v.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeProduct(b.dataset.remove)));
+  v.querySelectorAll('[data-restore]').forEach(b=>b.addEventListener('click',()=>{
+    S.hidden=(S.hidden||[]).filter(id=>id!==b.dataset.restore); save(); rebuildP(); renderProducts(); renderTopbar(); toast('Restored');
+  }));
+}
+
+function removeProduct(id){
+  const p=P[id]; if(!p) return;
+  const custom=customList().some(c=>c.id===id);
+  const used=(p.routines||[]).length || ROUTINES.morning.steps.concat(ROUTINES.a313.steps,ROUTINES.recovery.steps,ROUTINES.rest.steps).some(s=>s.p===id);
+  const msg = custom ? `Delete “${p.name}”? This removes it from your shelf and any routines.` 
+                     : `Remove “${p.name}”? It'll leave your routines and shelf, but you can restore it anytime.`;
+  showModal({
+    title: custom?'Delete product?':'Remove product?',
+    body: msg + (used?'<br><br><b>Note:</b> it currently appears in a routine — that step will disappear.':''),
+    actions:[
+      {label: custom?'Delete':'Remove', cls:'primary', onClick:()=>{
+        if(custom){ S.customProducts=customList().filter(c=>c.id!==id); delete S.opened[id]; }
+        else { S.hidden=[...(S.hidden||[]), id]; }
+        save(); rebuildP(); renderProducts(); renderTopbar(); toast(custom?'Deleted':'Removed');
+      }},
+      {label:'Keep it', cls:'ghost'}
+    ]
+  });
+}
+
+const ROUTINE_CHOICES=[['morning','Morning'],['a313','A313 nights'],['recovery','Off nights'],['rest','Barrier rest']];
+const THUMB_COLORS=['#6E9BC0','#DD9445','#2FA36B','#8A5316','#5A6A82'];
+function openAddProduct(){
+  const id='cust_'+Date.now().toString(36);
+  const rows=ROUTINE_CHOICES.map(([k,l])=>`<label class="rt-check"><input type="checkbox" value="${k}"><span>${l}</span></label>`).join('');
+  showModal({
+    title:'Add a product', icon:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2E5677" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>', iconBg:'var(--blue-tint)',
+    body:`<div class="form">
+      <label class="fl">Name <span class="req">*</span></label>
+      <input class="fi" id="ap_name" placeholder="e.g. Niacinamide 10% serum">
+      <div class="frow">
+        <div><label class="fl">Brand</label><input class="fi" id="ap_brand" placeholder="The Ordinary"></div>
+        <div><label class="fl">Role</label><input class="fi" id="ap_role" placeholder="Serum"></div>
+      </div>
+      <div class="frow">
+        <div><label class="fl">Size</label><input class="fi" id="ap_size" placeholder="30 ml"></div>
+        <div><label class="fl">Lasts ~ (days)</label><input class="fi" id="ap_life" type="number" inputmode="numeric" placeholder="90"></div>
+      </div>
+      <label class="fl">Add to routines <span style="color:var(--ink-faint);font-weight:400">(optional — shows in your checklist)</span></label>
+      <div class="rt-checks">${rows}</div>
+      <div class="frow">
+        <div><label class="fl">Step label</label><input class="fi" id="ap_step" placeholder="Treat"></div>
+        <div><label class="fl">Where / amount</label><input class="fi" id="ap_area" placeholder="whole face"></div>
+      </div>
+      <label class="fl">Note</label>
+      <input class="fi" id="ap_note" placeholder="Anything to remember">
+    </div>`,
+    actions:[
+      {label:'Add product', cls:'primary', onClick:null, keep:true}
+    ],
+    onMount:(ov)=>{
+      ov.querySelector('.mbtn.primary').addEventListener('click',()=>{
+        const name=ov.querySelector('#ap_name').value.trim();
+        if(!name){ ov.querySelector('#ap_name').style.borderColor='var(--red)'; return; }
+        const routines=[...ov.querySelectorAll('.rt-checks input:checked')].map(c=>c.value);
+        const prod={
+          id, custom:true, name,
+          brand:ov.querySelector('#ap_brand').value.trim()||'',
+          role:ov.querySelector('#ap_role').value.trim()||'Product',
+          size:ov.querySelector('#ap_size').value.trim()||'',
+          lifeDays:parseInt(ov.querySelector('#ap_life').value)||90,
+          note:ov.querySelector('#ap_note').value.trim()||'',
+          stepLabel:ov.querySelector('#ap_step').value.trim()||'',
+          area:ov.querySelector('#ap_area').value.trim()||'',
+          stars:4, color:THUMB_COLORS[customList().length % THUMB_COLORS.length],
+          routines
+        };
+        S.customProducts=[...customList(), prod];
+        save(); rebuildP(); closeModal(); renderProducts(); renderTopbar();
+        toast(routines.length?'Added to shelf & routines':'Added to shelf');
+      });
+    }
+  });
 }
 
 /* ---- PROGRESS ---- */
@@ -974,7 +1114,14 @@ function renderMore(){
         <option value="rest">barrier rest</option>
       </select></div>
   </div>`;
-  html+=`<button class="btn ghost" id="exportBtn" style="margin-bottom:10px">Export my data (backup)</button>`;
+  html+=`<div class="section-label">backup &amp; updates</div>`;
+  html+=`<div class="info" style="padding-top:6px">
+    <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin-bottom:13px">Everything you log — routines, custom products, journal, dates — lives on this device. Export a backup before clearing your browser or moving phones. When Claude sends you an updated app, just <b>Import</b> your backup to carry it all over.</p>
+    <button class="btn ghost" id="exportBtn" style="margin-bottom:9px">⤓ Export backup (.json)</button>
+    <button class="btn ghost" id="importBtn" style="margin-bottom:9px">⤒ Import backup</button>
+    <button class="btn ghost" id="copyBtn">⧉ Copy my data for Claude</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+  </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
@@ -990,9 +1137,37 @@ function renderMore(){
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='le-regime-backup-'+todayISO()+'.json'; a.click(); toast('Backup downloaded');
   });
+  const fileInput=v.querySelector('#importFile');
+  v.querySelector('#importBtn').addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      let parsed; try{ parsed=JSON.parse(r.result); }catch(err){ toast('Not a valid backup file'); return; }
+      if(!parsed || (parsed.logs===undefined && parsed.start===undefined)){ toast('This file isn\u2019t a le régime backup'); return; }
+      showModal({
+        title:'Import this backup?',
+        body:`It will replace what\u2019s currently on this device with the backup\u2019s data (${Object.keys(parsed.logs||{}).length} logged days, ${(parsed.customProducts||[]).length} custom products, ${(parsed.journal||[]).length} journal entries).`,
+        actions:[
+          {label:'Replace with backup', cls:'primary', onClick:()=>{
+            S=normalize(parsed); save(); rebuildP(); switchTab('today'); toast('Backup imported');
+          }},
+          {label:'Cancel', cls:'ghost'}
+        ]
+      });
+    };
+    r.readAsText(f); fileInput.value='';
+  });
+  v.querySelector('#copyBtn').addEventListener('click',async()=>{
+    const txt=JSON.stringify(S);
+    try{ await navigator.clipboard.writeText(txt); toast('Copied — paste it to Claude'); }
+    catch(err){
+      showModal({title:'Copy your data',body:'Select all and copy this, then paste it into your chat with Claude:<br><br><textarea class="fi" style="height:120px;font-size:11px" readonly>'+txt.replace(/</g,'&lt;')+'</textarea>',actions:[{label:'Done',cls:'primary'}]});
+    }
+  });
   v.querySelector('#resetBtn').addEventListener('click',()=>{
-    if(confirm('Erase all logs, journal and product dates? This cannot be undone.')){
-      localStorage.removeItem(KEY); S=loadState(); save(); switchTab('today'); toast('Reset complete');
+    if(confirm('Erase all logs, journal, custom products and product dates? This cannot be undone.')){
+      localStorage.removeItem(KEY); S=loadState(); rebuildP(); save(); switchTab('today'); toast('Reset complete');
     }
   });
 }
