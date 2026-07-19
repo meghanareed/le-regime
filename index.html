@@ -493,6 +493,37 @@ let S = loadState();
 rebuildP();
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast('Storage unavailable'); } }
 
+/* ---------- GitHub auto-backup ----------
+   Stored in a SEPARATE key so the token never appears in exports,
+   "Copy for Claude", or the committed backup file itself. */
+const GHKEY='leRegime.gh.v1';
+let GH = (()=>{ try{ return JSON.parse(localStorage.getItem(GHKEY))||{}; }catch(e){ return {}; } })();
+function saveGH(){ try{ localStorage.setItem(GHKEY, JSON.stringify(GH)); }catch(e){} }
+function b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
+async function ghPut(path, content, message, branch){
+  const url=`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`;
+  const H={Authorization:`Bearer ${GH.token}`, Accept:'application/vnd.github+json'};
+  let sha;
+  try{ const head=await fetch(url+`?ref=${encodeURIComponent(branch)}`,{headers:H});
+       if(head.status===200) sha=(await head.json()).sha; }catch(e){}
+  const res=await fetch(url,{method:'PUT',headers:{...H,'Content-Type':'application/json'},
+    body:JSON.stringify({message,branch,content:b64utf8(content),...(sha?{sha}:{})})});
+  if(!res.ok){ const t=await res.text().catch(()=>''); throw new Error(res.status+(res.status===401?' · check token':res.status===404?' · check owner/repo':' '+t.slice(0,60))); }
+}
+async function doBackup(silent){
+  if(!GH.token||!GH.owner||!GH.repo){ if(!silent) toast('Add your GitHub details first'); return false; }
+  const branch=GH.branch||'main';
+  const prefix=(GH.folder||'backups').replace(/^\/+|\/+$/g,'');
+  const data=JSON.stringify(S,null,2);
+  try{
+    if(!silent) toast('Backing up…');
+    await ghPut(`${prefix}/le-regime-${todayISO()}.json`, data, `Backup ${todayISO()}`, branch);
+    await ghPut(`${prefix}/latest.json`, data, `Backup ${todayISO()} (latest)`, branch);
+    GH.last=todayISO(); saveGH();
+    toast('Backed up to GitHub'); if(currentTab==='more') renderMore(); return true;
+  }catch(e){ toast('Backup failed · '+e.message); return false; }
+}
+
 /* ---------- date / phase helpers ---------- */
 function weekOfPlan(dateStr=todayISO()){
   const start = new Date(S.start+'T00:00');
@@ -1131,6 +1162,22 @@ function renderMore(){
     <button class="btn ghost" id="importBtn" style="margin-bottom:9px">⤒ Import backup</button>
     <button class="btn ghost" id="copyBtn">⧉ Copy my data for Claude</button>
     <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+
+    <div style="border-top:1px solid var(--line-soft);margin:16px 0 12px"></div>
+    <div class="sl" style="margin-bottom:2px">Auto-backup to GitHub</div>
+    <div class="sd" style="margin-bottom:12px;line-height:1.5">Commits a dated JSON to a private repo, once a day when you open the app. Use a <b>fine-grained token</b> limited to one private repo with <b>Contents: read and write</b>. It's stored only on this device and never included in exports.</div>
+    <label class="fl">Repo</label>
+    <input class="fi" id="gh_repo" placeholder="owner/repo (private)" value="${GH.owner&&GH.repo?GH.owner+'/'+GH.repo:''}" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:9px">
+    <div class="frow">
+      <div><label class="fl">Branch</label><input class="fi" id="gh_branch" placeholder="main" value="${GH.branch||''}" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <div><label class="fl">Folder</label><input class="fi" id="gh_folder" placeholder="backups" value="${GH.folder||''}" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    </div>
+    <label class="fl">Token</label>
+    <input class="fi" id="gh_token" type="password" placeholder="${GH.token?'•••••••• (saved)':'github_pat_…'}" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:11px">
+    <label class="rt-check" style="margin-bottom:11px"><input type="checkbox" id="gh_auto" ${GH.auto?'checked':''}><span>Back up automatically once a day</span></label>
+    <button class="btn ghost" id="ghSave" style="margin-bottom:9px">Save GitHub settings</button>
+    <button class="btn" id="ghNow">Back up now</button>
+    <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
@@ -1175,6 +1222,21 @@ function renderMore(){
       showModal({title:'Copy your data',body:'Select all and copy this, then paste it into your chat with Claude:<br><br><textarea class="fi" style="height:120px;font-size:11px" readonly>'+txt.replace(/</g,'&lt;')+'</textarea>',actions:[{label:'Done',cls:'primary'}]});
     }
   });
+  const ghApply=()=>{
+    const repo=(v.querySelector('#gh_repo').value||'').trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'');
+    const [owner,name]=repo.split('/');
+    GH.owner=owner||''; GH.repo=name||'';
+    GH.branch=(v.querySelector('#gh_branch').value||'').trim()||'main';
+    GH.folder=(v.querySelector('#gh_folder').value||'').trim()||'backups';
+    GH.auto=v.querySelector('#gh_auto').checked;
+    const tok=v.querySelector('#gh_token').value.trim();
+    if(tok) GH.token=tok;                 // keep existing token if field left blank
+    saveGH();
+  };
+  v.querySelector('#ghSave').addEventListener('click',()=>{ ghApply(); renderMore(); toast('GitHub settings saved'); });
+  v.querySelector('#gh_auto').addEventListener('change',ghApply);
+  v.querySelector('#ghNow').addEventListener('click',async()=>{ ghApply(); await doBackup(false); });
+
   v.querySelector('#resetBtn').addEventListener('click',()=>{
     if(confirm('Erase all logs, journal, custom products and product dates? This cannot be undone.')){
       localStorage.removeItem(KEY); S=loadState(); rebuildP(); save(); switchTab('today'); toast('Reset complete');
@@ -1186,7 +1248,9 @@ function renderMore(){
    NAV
    ===================================================================== */
 const RENDER={today:renderToday,routines:renderRoutines,products:renderProducts,progress:renderProgress,more:renderMore};
+let currentTab='today';
 function switchTab(name){
+  currentTab=name;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('v-'+name).classList.add('active');
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
@@ -1201,6 +1265,11 @@ window.addEventListener('scroll',()=>{
 /* init */
 renderTopbar();
 renderToday();
+
+/* auto-backup to GitHub, at most once a day, when the app is opened */
+if(GH.auto && GH.token && GH.owner && GH.repo && GH.last!==todayISO()){
+  setTimeout(()=>doBackup(true), 1500);
+}
 
 /* service worker */
 if('serviceWorker' in navigator){
