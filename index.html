@@ -330,6 +330,7 @@ nav.tabs{
 .rt-checks{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:2px}
 .rt-check{display:flex;align-items:center;gap:8px;font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--card)}
 .rt-check input{width:16px;height:16px;accent-color:var(--green)}
+.who-tag{font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--green);background:var(--green-tint);padding:3px 8px;border-radius:100px;position:relative;top:1px}
 .prod-remove{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;color:var(--ink-faint);background:var(--line-soft)}
 .prod-remove:active{background:var(--red-tint);color:var(--red)}
 </style>
@@ -342,6 +343,7 @@ nav.tabs{
         <svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       </span>
       <h1>le régime</h1>
+      <span class="who-tag" id="whoTag"></span>
     </div>
     <span class="phase-chip" id="phaseChip">week —</span>
   </header>
@@ -393,7 +395,7 @@ const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="#DD9445" stroke-width=
 const MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="#6E9BC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14a8 8 0 1 1-9-11 6 6 0 0 0 9 11Z"/></svg>';
 
 /* ---------- product catalogue ---------- */
-const PRODUCTS = [
+const PRODUCTS_MEGHAN = [
   {id:'toleriane', name:'Toleriane Hydrating Gentle Cleanser', brand:'La Roche-Posay', role:'Cleanser',
    color:'#6E9BC0', stars:5, size:'400 ml', lifeDays:120,
    note:'Gentle, non-stripping. AM + PM base of every routine.'},
@@ -427,7 +429,7 @@ function rebuildP(){ P = Object.fromEntries(PRODUCTS.concat(customList()).map(p=
 
 /* ---------- routines ---------- */
 function step(prod, opts={}){return {p:prod, ...opts};}
-const ROUTINES = {
+const ROUTINES_MEGHAN = {
   morning:{ id:'morning', label:'Morning', icon:'sun', tag:'daily · AM', steps:[
     step('toleriane',{name:'Cleanse',amount:'small pump',area:'face'}),
     step('vinoperfect',{name:'Vitamin C serum',amount:'3–4 drops',area:'face',note:'Fades marks & brightens. Skip only if skin feels raw.'}),
@@ -454,13 +456,183 @@ const ROUTINES = {
 };
 
 /* ---------- A313 phase engine ---------- */
-const PHASES = [
+const PHASES_MEGHAN = [
   {wk:[1,2],   name:'Introduce',   freq:2, nights:[2,6],           desc:'2 nights / week',    micro:'Let skin meet retinoids gently. Expect nothing dramatic yet.'},
   {wk:[3,4],   name:'Build',       freq:3, nights:[1,3,5],         desc:'every other night',  micro:'If weeks 1–2 were calm, step up. Watch for tightness.'},
   {wk:[5,8],   name:'Establish',   freq:5, nights:[0,1,2,4,5],     desc:'5 nights / week',    micro:'Retinization is settling. Purging usually peaks and fades here.'},
   {wk:[9,12],  name:'Consolidate', freq:7, nights:[0,1,2,3,4,5,6], desc:'nightly if tolerated', micro:'Nightly only if skin is comfortable. No prize for rushing.'},
   {wk:[13,999],name:'Maintenance', freq:4, nights:[0,2,4,6],       desc:'4 nights / week',    micro:'Long-term sustainable rhythm. This is the finish line that lasts.'},
 ];
+const SEASONAL_MEGHAN = [
+  ['Travel','Simplify to survive transit & hard water.',[
+    'Cleanser, XeraCalm, SPF are the non-negotiable carry-ons.',
+    'Pause A313 on flight days and the first night in a new place — dehydration + friction magnify irritation.',
+    'Decant into <100ml bottles; SPF is your priority reapply.']],
+  ['Winter','Barrier-first when air is dry & cold.',[
+    'Layer XeraCalm morning and night; add a pea over cheeks midday if tight.',
+    'Drop A313 by one frequency step if skin flakes — humidity is your enemy here.',
+    'Keep SPF: snow and window glass still age skin.']],
+  ['Summer','Lighter, but sun-vigilant.',[
+    'Vitamin C every morning — it boosts SPF and fights the pigmentation heat provokes.',
+    'Reapply Anthelios every 2 hours outdoors; consider pausing A313 on heavy-sun holidays.',
+    'Sweat + Cleanance can over-dry — spot only.']],
+  ['Maintenance (post-week 12)','Your sustainable long game.',[
+    'A313 four nights a week keeps results without over-taxing the barrier.',
+    'Keep Vitamin C + SPF every morning — this is where anti-aging is actually won.',
+    'Reassess products as they run out; repurchase the 5-star staples first.']],
+];
+
+const TROUBLE_MEGHAN=[
+  {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>XeraCalm</b> morning, night, and a midday pea over tight areas.','Drop A313 by one frequency step (e.g. nightly → every other) for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
+  {sx:'var(--amber)',t:'Peeling or flaking',fix:['Do not pick or exfoliate — you\'ll damage new skin.','Buffer A313 with moisturizer underneath; skip Sébium & Cleanance until settled.','Hydrate generously; peeling means slow down, not push through.']},
+  {sx:'var(--red)',t:'Burning or stinging',fix:['If it happens during application, your skin wasn\'t fully dry — wait 20 min next time.','Rinse off tonight if it\'s intense, moisturize, skip actives.','Use a smaller-than-pea amount when you resume.']},
+  {sx:'var(--red)',t:'Redness or irritation',fix:['Pause all actives 2–3 nights: cleanse + XeraCalm only (the <b>barrier rest</b> evening).','Cool compress; avoid hot water and physical scrubs.','Reintroduce A313 at a lower frequency once calm.']},
+  {sx:'var(--green)',t:'Acne seems worse',fix:['In weeks 2–6, in your usual chin/jaw zones, this is likely <b>purging</b> — retinoids surfacing what was coming anyway. Stay the course.','Don\'t add new products to "fix" it — that\'s how barriers break.','If it\'s new areas, cystic, or past week 8, note it and consider seeing a dermatologist.']},
+  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: Cleanser, XeraCalm, SPF only.','Reintroduce one active every few days, starting with Vitamin C.','Sensitivity is a barrier signal — rebuild before resuming A313.']},
+];
+const SCIENCE_MEGHAN=[
+  {t:'Vitamin A / Retinoids (A313)',d:'A313 is retinyl esters — a gentle vitamin A. Skin converts it toward retinoic acid, which speeds cell turnover, boosts collagen, and normalizes how pores shed cells. That\'s why it treats acne, texture, and fine lines at once. "Retinization" is the 4–12 week adjustment period as skin adapts.'},
+  {t:'Barrier repair',d:'Your skin barrier is a brick-and-mortar wall of cells and lipids. When it\'s intact, water stays in and irritants stay out. XeraCalm\'s lipids (ceramide-like) rebuild the mortar — essential when a retinoid is speeding turnover.'},
+  {t:'Pigmentation & acne marks',d:'The dark spots left after a pimple (PIH) are excess melanin. Vitamin C (Viniferine in Vinoperfect) interrupts melanin production, while A313\'s turnover clears pigmented cells faster. SPF is what stops them from redarkening.'},
+  {t:'UV damage & anti-aging',d:'Up to ~80% of visible aging is UV-driven — collagen breakdown, pigmentation, laxity. Daily SPF isn\'t just burn prevention; it\'s the single most effective anti-aging step and it protects everything the retinoid is building.'},
+  {t:'Skin turnover',d:'Cell turnover slows with age (~28 days young, longer later), so dead cells linger and skin looks dull with rough texture. Retinoids accelerate the cycle, which is why tone and smoothness improve — and why patience matters while the cycle resets.'},
+  {t:'Hormonal acne',d:'Androgen fluctuations drive oil and sticky pore-lining cells, concentrating breakouts on chin and jaw. Topicals (A313, Cleanance) manage the skin side; if it stays stubborn, the hormonal side may need a dermatologist\'s input.'},
+  {t:'Niacinamide, Viniferine & Urea',d:'Viniferine (grape-derived) is Caudalie\'s brightener, more stable than pure vitamin C. Urea (in Xérial 50) both hydrates and, at 50%, dissolves thick callus. Niacinamide, if you add one later, calms redness and supports the barrier — pairs well with everything here.'},
+];
+
+/* =====================================================================
+   PROFILE: MOM — anti-aging & redness focus, A313 Mon/Thu to start
+   ===================================================================== */
+const PRODUCTS_MOM = [
+  {id:'m_cleanser', name:'Gentle cleanser', brand:'', role:'Cleanser',
+   color:'#6E9BC0', stars:4, size:'', lifeDays:120,
+   note:'Your everyday cleanser, morning and night. Your sheet didn\'t name a specific one — once you settle on it, remove this and add the real one from this tab.'},
+  {id:'vinoperfect', name:'Vinoperfect Brightening Serum', brand:'Caudalie', role:'Brightening serum',
+   color:'#DD9445', stars:5, size:'30 ml', lifeDays:60,
+   note:'Viniferine evens tone and fades dark marks. Used morning and evening, so it empties faster than most.'},
+  {id:'rosaliac', name:'Toleriane Rosaliac AR Concentrate', brand:'La Roche-Posay', role:'Anti-redness',
+   color:'#C6604F', stars:5, size:'40 ml', lifeDays:90,
+   note:'Targets visible redness and strengthens fragile capillaries. Apply to the cheeks and nose where flushing shows most.'},
+  {id:'optimeyes', name:'Optim-Eyes Eye Contour', brand:'Filorga', role:'Eye cream',
+   color:'#5A6A82', stars:4, size:'15 ml', lifeDays:90,
+   note:'Dark circles, puffiness and fine lines. Tap gently with the ring finger — never rub the eye area.'},
+  {id:'dermabsolu', name:'DermAbsolu Day Cream', brand:'Avène', role:'Moisturizer',
+   color:'#2FA36B', stars:5, size:'40 ml', lifeDays:75,
+   note:'Firming daily moisturizer for mature skin. Doubles as your comfort layer on A313 nights.'},
+  {id:'anthelios', name:'Anthelios UVMune 400 Invisible Fluid SPF50+', brand:'La Roche-Posay', role:'Sunscreen · AM',
+   color:'#DD9445', stars:5, size:'50 ml', lifeDays:50,
+   note:'Every single morning, and non-negotiable while using A313. Two fingers; reapply every 2h outdoors.'},
+  {id:'a313', name:'A313 Vitamin A Pommade', brand:'Pharma Développement', role:'Retinoid · PM',
+   color:'#8A5316', stars:5, size:'50 ml', lifeDays:180,
+   note:'The engine of the plan — smooths lines and evens tone. Dry skin only, pea-size, on scheduled nights.'},
+];
+const ROUTINES_MOM = {
+  morning:{ id:'morning', label:'Morning', icon:'sun', tag:'daily · AM', steps:[
+    step('m_cleanser',{name:'Cleanse',amount:'small amount',area:'face'}),
+    step('vinoperfect',{name:'Brightening serum',amount:'3–4 drops',area:'face'}),
+    step('rosaliac',{name:'Anti-redness',amount:'thin layer',area:'cheeks · nose'}),
+    step('optimeyes',{name:'Eye cream',amount:'rice grain',area:'under eyes',note:'Tap gently with your ring finger — never rub.'}),
+    step('dermabsolu',{name:'Moisturize',amount:'pea–almond',area:'face · neck'}),
+    step('anthelios',{name:'Sunscreen',amount:'two fingers',area:'face + neck',warm:'every morning'}),
+  ]},
+  a313:{ id:'a313', label:'Evening · A313 night', icon:'moon', tag:'retinoid night', steps:[
+    step('m_cleanser',{name:'Cleanse',amount:'small amount',area:'face'}),
+    step('a313',{name:'Wait until fully dry',amount:'10–20 min',note:'A313 on damp skin stings and irritates. Dry completely first.'}),
+    step('a313',{name:'A313 pommade',amount:'pea-size',area:'avoid eyes & lips',warm:'dry skin only'}),
+    step('a313',{name:'Wait before moisturizing',amount:'10–15 min',note:'Let it settle, then buffer with your cream.'}),
+    step('dermabsolu',{name:'Moisturize',amount:'generous',area:'face · neck'}),
+    step('optimeyes',{name:'Eye cream',amount:'rice grain',area:'under eyes'}),
+  ]},
+  recovery:{ id:'recovery', label:'Evening · regular night', icon:'moon', tag:'treat & nourish', steps:[
+    step('m_cleanser',{name:'Cleanse',amount:'small amount',area:'face'}),
+    step('vinoperfect',{name:'Brightening serum',amount:'3–4 drops',area:'face'}),
+    step('rosaliac',{name:'Anti-redness',amount:'thin layer',area:'cheeks · nose'}),
+    step('optimeyes',{name:'Eye cream',amount:'rice grain',area:'under eyes'}),
+    step('dermabsolu',{name:'Moisturize',amount:'pea–almond',area:'face · neck'}),
+  ]},
+  rest:{ id:'rest', label:'Evening · barrier rest', icon:'moon', tag:'calm & repair', steps:[
+    step('m_cleanser',{name:'Gentle cleanse',amount:'small amount',area:'face',note:'Or just lukewarm water if skin is very reactive.'}),
+    step('dermabsolu',{name:'Moisturize',amount:'generous',area:'face · neck',warm:'as a treatment tonight'}),
+    step('optimeyes',{name:'Eye cream',amount:'rice grain',area:'under eyes'}),
+  ]},
+};
+const PHASES_MOM = [
+  {wk:[1,2],   name:'Introduce',   freq:2, nights:[1,4],       desc:'Mon & Thu',        micro:'Starting gently, exactly as written on your sheet.'},
+  {wk:[3,4],   name:'Build',       freq:3, nights:[1,3,5],     desc:'Mon · Wed · Fri',  micro:'Step up only if the first two weeks felt comfortable.'},
+  {wk:[5,8],   name:'Establish',   freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'Skin is adapting. Redness should be settling, not rising.'},
+  {wk:[9,12],  name:'Consolidate', freq:5, nights:[0,1,2,4,5], desc:'5 nights / week',  micro:'Only if skin is calm and comfortable. No prize for rushing.'},
+  {wk:[13,999],name:'Maintenance', freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'The long-term rhythm that keeps results without over-taxing skin.'},
+];
+const TROUBLE_MOM=[
+  {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>DermAbsolu</b> morning, night, and a little midday over tight areas.','Drop A313 by one frequency step for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
+  {sx:'var(--amber)',t:'Peeling or flaking',fix:['Do not pick or scrub — you\'ll damage new skin.','Buffer A313 with moisturizer underneath, and skip Vinoperfect for a few days.','Hydrate generously. Peeling means slow down, not push through.']},
+  {sx:'var(--red)',t:'Burning or stinging',fix:['If it stings on application, the skin wasn\'t fully dry — wait the full 20 minutes next time.','Rinse off tonight if it\'s intense, moisturize, and skip actives.','Use less than a pea when you resume.']},
+  {sx:'var(--red)',t:'Redness or flushing increases',fix:['Pause all actives for 2–3 nights: cleanse + DermAbsolu only (the <b>barrier rest</b> evening).','Keep using <b>Rosaliac AR</b> — it\'s the calming one, not an active.','Avoid hot water, saunas, and spicy food while it settles; reintroduce A313 at a lower frequency.']},
+  {sx:'var(--blue)',t:'Eye area feels irritated',fix:['Keep A313 well away from the eyelid and orbital bone — it migrates as it warms.','Use Optim-Eyes as the buffer, applied before A313 on retinoid nights.','If irritation persists, skip A313 near the eyes entirely.']},
+  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: cleanser, DermAbsolu, SPF only.','Reintroduce one product every few days, starting with Rosaliac.','Sensitivity is a barrier signal — rebuild before resuming A313.']},
+];
+const SCIENCE_MOM=[
+  {t:'Vitamin A / Retinoids (A313)',d:'A313 is retinyl esters — a gentle form of vitamin A. Skin converts it toward retinoic acid, which speeds cell turnover and stimulates collagen. That\'s why it softens fine lines, evens tone, and refines texture. The 4–12 week adjustment period is called retinization.'},
+  {t:'Why the waiting steps matter',d:'Applying A313 to damp skin drives it in faster and harder than intended, which is the usual cause of stinging. Waiting until skin is bone dry — then waiting again before moisturizing — is what makes a retinoid tolerable rather than punishing.'},
+  {t:'Redness & fragile capillaries',d:'Visible redness often comes from dilated surface capillaries and a thinned barrier. Rosaliac AR targets that directly, while a strong moisturizer reduces the reactivity that makes flushing worse. Retinoids can aggravate redness early on — which is exactly why the plan starts at two nights a week.'},
+  {t:'Barrier repair',d:'Your skin barrier is a brick-and-mortar wall of cells and lipids. When intact, water stays in and irritants stay out. A rich moisturizer rebuilds the mortar — essential when a retinoid is speeding turnover underneath.'},
+  {t:'Pigmentation & even tone',d:'Dark marks and uneven tone come from excess melanin. Viniferine (in Vinoperfect) interrupts melanin production, and A313\'s turnover clears pigmented cells faster. Daily SPF is what stops them coming back.'},
+  {t:'UV damage & anti-aging',d:'Up to ~80% of visible aging is UV-driven — collagen breakdown, pigmentation, laxity. Daily SPF isn\'t just burn prevention; it\'s the single most effective anti-aging step, and it protects everything the retinoid is building.'},
+  {t:'The eye area',d:'Eyelid skin is the thinnest on the body, with fewer oil glands, so it shows fatigue and fine lines first and irritates easily. That\'s why eye cream is its own step, applied by tapping rather than rubbing.'},
+];
+const SEASONAL_MOM = [
+  ['Travel','Keep it simple on the road.',[
+    'Cleanser, DermAbsolu and SPF are the non-negotiable carry-ons.',
+    'Pause A313 on flight days and the first night away — dry cabin air magnifies irritation.',
+    'Decant into <100ml bottles; SPF is the one to reapply.']],
+  ['Winter','Barrier-first when air is dry and cold.',[
+    'Layer DermAbsolu morning and night; add a little midday if skin feels tight.',
+    'Cold-to-warm swings worsen flushing — Rosaliac stays in the routine year round.',
+    'Keep SPF: snow and window glass still age skin.']],
+  ['Summer','Lighter, but sun-vigilant.',[
+    'Vinoperfect every morning — it works alongside SPF against pigmentation.',
+    'Reapply Anthelios every 2 hours outdoors; consider pausing A313 on heavy-sun holidays.',
+    'Heat is a flushing trigger — keep a cool compress handy.']],
+  ['Maintenance (post-week 12)','The sustainable long game.',[
+    'A313 four nights a week keeps results without over-taxing the skin.',
+    'Vinoperfect + SPF every morning — this is where anti-aging is actually won.',
+    'Reassess products as they run out; repurchase the 5-star staples first.']],
+];
+
+/* ---------- profile registry ---------- */
+const PROFILES = {
+  meghan:{ key:'leRegime.v1',     name:'Meghan', products:PRODUCTS_MEGHAN, routines:ROUTINES_MEGHAN,
+           phases:PHASES_MEGHAN, trouble:TROUBLE_MEGHAN, science:SCIENCE_MEGHAN, seasonal:SEASONAL_MEGHAN,
+           intro:"Your morning routine is the same every day. Evenings rotate based on where you are in the A313 plan — the Today tab always picks tonight's for you. Here are all of them for reference." },
+  mom:{    key:'leRegime.v1.mom', name:'Mom',    products:PRODUCTS_MOM,    routines:ROUTINES_MOM,
+           phases:PHASES_MOM,    trouble:TROUBLE_MOM,    science:SCIENCE_MOM,    seasonal:SEASONAL_MOM,
+           intro:"Your morning routine is the same every day. Evenings alternate between regular nights and A313 nights — the Today tab always picks tonight's for you. Here are all of them for reference." },
+};
+const PROFILE_KEY='leRegime.profile';
+function resolveProfile(){
+  const q=new URLSearchParams(location.search).get('who');
+  if(q && PROFILES[q.toLowerCase()]){
+    const id=q.toLowerCase();
+    try{ localStorage.setItem(PROFILE_KEY,id); }catch(e){}   // remember this device's person
+    return id;
+  }
+  let saved=null; try{ saved=localStorage.getItem(PROFILE_KEY); }catch(e){}
+  return (saved && PROFILES[saved]) ? saved : 'meghan';
+}
+let PROFILE=resolveProfile();
+let PRODUCTS, ROUTINES, PHASES, TROUBLE, SCIENCE, SEASONAL, ME;
+function applyProfile(){
+  ME=PROFILES[PROFILE];
+  PRODUCTS=ME.products; ROUTINES=ME.routines; PHASES=ME.phases;
+  TROUBLE=ME.trouble; SCIENCE=ME.science; SEASONAL=ME.seasonal;
+  KEY=ME.key; GHKEY='leRegime.gh.'+PROFILE;
+  document.title='le régime · '+ME.name;
+}
+function switchProfile(id){
+  if(!PROFILES[id]) return;
+  try{ localStorage.setItem(PROFILE_KEY,id); }catch(e){}
+  location.search='?who='+id;      // reload cleanly under the new person
+}
 function phaseForWeek(w){ return PHASES.find(p=>w>=p.wk[0]&&w<=p.wk[1]) || PHASES[PHASES.length-1]; }
 /* the ordonnance progress bar — a ramp toward week 12, then a live count toward the payoff milestones */
 function planTrack(w){
@@ -474,7 +646,8 @@ function planTrack(w){
 }
 
 /* ---------- state ---------- */
-const KEY='leRegime.v1';
+let KEY, GHKEY;
+applyProfile();                    // sets PRODUCTS/ROUTINES/PHASES + storage keys for this person
 const todayISO = ()=> new Date().toISOString().slice(0,10);
 function normalize(s){
   if(!s || typeof s!=='object') s = {};
@@ -496,7 +669,6 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ t
 /* ---------- GitHub auto-backup ----------
    Stored in a SEPARATE key so the token never appears in exports,
    "Copy for Claude", or the committed backup file itself. */
-const GHKEY='leRegime.gh.v1';
 let GH = (()=>{ try{ return JSON.parse(localStorage.getItem(GHKEY))||{}; }catch(e){ return {}; } })();
 function saveGH(){ try{ localStorage.setItem(GHKEY, JSON.stringify(GH)); }catch(e){} }
 function b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
@@ -623,6 +795,7 @@ function toast(msg){
 }
 
 function renderTopbar(){
+  document.getElementById('whoTag').textContent = ME.name;
   document.getElementById('phaseChip').textContent = 'week '+weekOfPlan()+' · '+phaseForWeek(weekOfPlan()).name.toLowerCase();
   const bc = document.getElementById('brandCross');
   bc.innerHTML = dayComplete() ? CROSS_FILL : CROSS;
@@ -851,31 +1024,12 @@ function suggestPurge(){
 function renderRoutines(){
   const v=document.getElementById('v-routines');
   let html='<div class="section-label">the four evenings</div>';
-  html+=`<div class="info"><p>Your morning routine is the same every day. Evenings rotate based on where you are in the A313 plan — the Today tab always picks tonight's for you. Here are all of them for reference.</p></div>`;
+  html+=`<div class="info"><p>${ME.intro}</p></div>`;
   ['morning','a313','recovery','rest'].forEach(k=>{
     html+=staticRoutine(k);
   });
   html+='<div class="section-label">seasonal & situational</div>';
-  html+=seasonalCard('Travel','Simplify to survive transit & hard water.',[
-    'Cleanser, XeraCalm, SPF are the non-negotiable carry-ons.',
-    'Pause A313 on flight days and the first night in a new place — dehydration + friction magnify irritation.',
-    'Decant into <100ml bottles; SPF is your priority reapply.',
-  ]);
-  html+=seasonalCard('Winter','Barrier-first when air is dry & cold.',[
-    'Layer XeraCalm morning and night; add a pea over cheeks midday if tight.',
-    'Drop A313 by one frequency step if skin flakes — humidity is your enemy here.',
-    'Keep SPF: snow and window glass still age skin.',
-  ]);
-  html+=seasonalCard('Summer','Lighter, but sun-vigilant.',[
-    'Vitamin C every morning — it boosts SPF and fights the pigmentation heat provokes.',
-    'Reapply Anthelios every 2 hours outdoors; consider pausing A313 on heavy-sun holidays.',
-    'Sweat + Cleanance can over-dry — spot only.',
-  ]);
-  html+=seasonalCard('Maintenance (post-week 12)','Your sustainable long game.',[
-    'A313 four nights a week keeps results without over-taxing the barrier.',
-    'Keep Vitamin C + SPF every morning — this is where anti-aging is actually won.',
-    'Reassess products as they run out; repurchase the 5-star staples first.',
-  ]);
+  SEASONAL.forEach(([t,s,pts])=>{ html+=seasonalCard(t,s,pts); });
   v.innerHTML=html;
 }
 function staticRoutine(key){
@@ -1107,23 +1261,6 @@ function renderJournal(){
 function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 /* ---- MORE (troubleshoot / science / settings) ---- */
-const TROUBLE=[
-  {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>XeraCalm</b> morning, night, and a midday pea over tight areas.','Drop A313 by one frequency step (e.g. nightly → every other) for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
-  {sx:'var(--amber)',t:'Peeling or flaking',fix:['Do not pick or exfoliate — you\'ll damage new skin.','Buffer A313 with moisturizer underneath; skip Sébium & Cleanance until settled.','Hydrate generously; peeling means slow down, not push through.']},
-  {sx:'var(--red)',t:'Burning or stinging',fix:['If it happens during application, your skin wasn\'t fully dry — wait 20 min next time.','Rinse off tonight if it\'s intense, moisturize, skip actives.','Use a smaller-than-pea amount when you resume.']},
-  {sx:'var(--red)',t:'Redness or irritation',fix:['Pause all actives 2–3 nights: cleanse + XeraCalm only (the <b>barrier rest</b> evening).','Cool compress; avoid hot water and physical scrubs.','Reintroduce A313 at a lower frequency once calm.']},
-  {sx:'var(--green)',t:'Acne seems worse',fix:['In weeks 2–6, in your usual chin/jaw zones, this is likely <b>purging</b> — retinoids surfacing what was coming anyway. Stay the course.','Don\'t add new products to "fix" it — that\'s how barriers break.','If it\'s new areas, cystic, or past week 8, note it and consider seeing a dermatologist.']},
-  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: Cleanser, XeraCalm, SPF only.','Reintroduce one active every few days, starting with Vitamin C.','Sensitivity is a barrier signal — rebuild before resuming A313.']},
-];
-const SCIENCE=[
-  {t:'Vitamin A / Retinoids (A313)',d:'A313 is retinyl esters — a gentle vitamin A. Skin converts it toward retinoic acid, which speeds cell turnover, boosts collagen, and normalizes how pores shed cells. That\'s why it treats acne, texture, and fine lines at once. "Retinization" is the 4–12 week adjustment period as skin adapts.'},
-  {t:'Barrier repair',d:'Your skin barrier is a brick-and-mortar wall of cells and lipids. When it\'s intact, water stays in and irritants stay out. XeraCalm\'s lipids (ceramide-like) rebuild the mortar — essential when a retinoid is speeding turnover.'},
-  {t:'Pigmentation & acne marks',d:'The dark spots left after a pimple (PIH) are excess melanin. Vitamin C (Viniferine in Vinoperfect) interrupts melanin production, while A313\'s turnover clears pigmented cells faster. SPF is what stops them from redarkening.'},
-  {t:'UV damage & anti-aging',d:'Up to ~80% of visible aging is UV-driven — collagen breakdown, pigmentation, laxity. Daily SPF isn\'t just burn prevention; it\'s the single most effective anti-aging step and it protects everything the retinoid is building.'},
-  {t:'Skin turnover',d:'Cell turnover slows with age (~28 days young, longer later), so dead cells linger and skin looks dull with rough texture. Retinoids accelerate the cycle, which is why tone and smoothness improve — and why patience matters while the cycle resets.'},
-  {t:'Hormonal acne',d:'Androgen fluctuations drive oil and sticky pore-lining cells, concentrating breakouts on chin and jaw. Topicals (A313, Cleanance) manage the skin side; if it stays stubborn, the hormonal side may need a dermatologist\'s input.'},
-  {t:'Niacinamide, Viniferine & Urea',d:'Viniferine (grape-derived) is Caudalie\'s brightener, more stable than pure vitamin C. Urea (in Xérial 50) both hydrates and, at 50%, dissolves thick callus. Niacinamide, if you add one later, calms redness and supports the barrier — pairs well with everything here.'},
-];
 function renderMore(){
   const v=document.getElementById('v-more');
   let html='<div class="section-label">if things go sideways</div>';
@@ -1145,6 +1282,10 @@ function renderMore(){
 
   html+='<div class="section-label">setup</div>';
   html+=`<div class="info">
+    <div class="set-row"><div><div class="sl">Whose routine</div><div class="sd">This device remembers your choice</div></div>
+      <select id="whoSel" style="font-family:'Spline Sans Mono';font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card);color:var(--ink)">
+        ${Object.entries(PROFILES).map(([id,p])=>`<option value="${id}" ${id===PROFILE?'selected':''}>${p.name}</option>`).join('')}
+      </select></div>
     <div class="set-row"><div><div class="sl">A313 start date</div><div class="sd">Drives your week & phase</div></div>
       <input type="date" id="startDate" value="${S.start}"></div>
     <div class="set-row"><div><div class="sl">Tonight\'s evening</div><div class="sd">Override the auto choice</div></div>
@@ -1183,6 +1324,18 @@ function renderMore(){
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
+  v.querySelector('#whoSel').addEventListener('change',e=>{
+    const id=e.target.value;
+    if(id===PROFILE) return;
+    showModal({
+      title:'Switch to '+PROFILES[id].name+'?',
+      body:`This device will open ${PROFILES[id].name}'s routine from now on. Each person's logs, products and backups are kept completely separate — nothing is overwritten.`,
+      actions:[
+        {label:'Switch to '+PROFILES[id].name, cls:'primary', onClick:()=>switchProfile(id)},
+        {label:'Stay with '+ME.name, cls:'ghost', onClick:()=>renderMore()}
+      ]
+    });
+  });
   v.querySelector('#startDate').addEventListener('change',e=>{ S.start=e.target.value; save(); renderTopbar(); toast('Start date updated'); });
   v.querySelector('#ovr').value=S.overrides[todayISO()]||'';
   v.querySelector('#ovr').addEventListener('change',e=>{
