@@ -1,5 +1,5 @@
 /* le régime — offline service worker */
-const CACHE = 'le-regime-v1';
+const CACHE = 'le-regime-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -11,7 +11,11 @@ const ASSETS = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then(c =>
+      // cache each asset individually: addAll() is atomic, so one 404 would
+      // fail the whole install and silently disable offline support
+      Promise.all(ASSETS.map(url => c.add(url).catch(() => null)))
+    ).then(() => self.skipWaiting())
   );
 });
 
