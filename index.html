@@ -79,7 +79,7 @@ main{padding:4px 16px 24px}
 .cx{display:inline-block;color:var(--green)}
 .cx svg{display:block;width:100%;height:100%}
 
-/* ---------- ordonnance (hero) ---------- */
+/* ---------- tonight card (hero) ---------- */
 .script{
   background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
   border:1px solid var(--line);overflow:hidden;margin:8px 0 20px;
@@ -157,6 +157,69 @@ main{padding:4px 16px 24px}
 .tag.area{background:var(--blue-tint);color:#2E5677}
 .tag.warm{background:var(--amber-tint);color:var(--amber-ink)}
 .step-note{font-size:11.5px;color:var(--amber-ink);background:var(--amber-tint);padding:7px 10px;border-radius:8px;margin-top:8px;line-height:1.45}
+.skip-btn{width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;color:var(--line);align-self:flex-start;margin-top:1px}
+.skip-btn svg{width:16px;height:16px}
+.step:active .skip-btn{color:var(--ink-faint)}
+.step.skipped .check{background:var(--ink-faint);border-color:var(--ink-faint)}
+.step.skipped .check svg{opacity:1;transform:scale(1);color:#fff}
+.step.skipped .step-body .name{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--line)}
+.step.skipped .prod,.step.skipped .step-meta{opacity:.55}
+.step.skipped .skip-btn{color:var(--ink-faint)}
+.skip-note{font-size:11.5px;color:var(--ink-soft);background:var(--line-soft);padding:7px 10px;border-radius:8px;margin-top:8px;line-height:1.45}
+
+/* history */
+.hday summary{gap:9px;padding:13px 16px;font-size:13.5px}
+.hdate{font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:600;color:var(--ink)}
+.hbadge{font-family:'Spline Sans Mono',monospace;font-size:9.5px;font-weight:600;padding:2px 7px;border-radius:5px;letter-spacing:.02em}
+.hbadge.a313{background:var(--amber-tint);color:var(--amber-ink)}
+.hbadge.off{background:var(--blue-tint);color:#2E5677}
+.hbadge.rest{background:var(--green-tint);color:#1C6A45}
+.hcounts{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--ink-soft);font-weight:500}
+.hskip{color:var(--ink-faint)}
+.hsec{font-family:'Spline Sans Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:4px 0 6px}
+.hz{display:flex;align-items:baseline;gap:9px;padding:4px 0;font-size:12.5px}
+.hzi{width:14px;flex:none;text-align:center;font-size:11px;font-weight:700}
+.hzi.done{color:var(--green)} .hzi.skip{color:var(--ink-faint)} .hzi.none{color:var(--line)}
+.hzn{color:var(--ink)}
+.hzn.skipped{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--line)}
+.hzn.none{color:var(--ink-faint)}
+.hzr{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--ink-faint);text-align:right}
+
+/* calendar */
+.cal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 13px 12px;box-shadow:var(--shadow-sm);margin-bottom:11px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.cal-title{font-family:Fraunces;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.cnav{width:32px;height:32px;border-radius:9px;background:var(--line-soft);color:var(--ink-soft);font-size:17px;line-height:1;display:grid;place-items:center}
+.cnav:active{background:var(--line)}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:5px}
+.cal-dow span{text-align:center;font-family:'Spline Sans Mono',monospace;font-size:9.5px;color:var(--ink-faint);letter-spacing:.04em}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cday{aspect-ratio:1;border-radius:9px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--paper);border:1px solid transparent}
+.cday.empty{background:transparent}
+.cnum{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--ink-soft);font-weight:500}
+.cday.full{background:var(--green);}
+.cday.full .cnum{color:#fff;font-weight:600}
+.cday.part{background:var(--amber-tint);border-color:#EFD8B8}
+.cday.part .cnum{color:var(--amber-ink)}
+.cday.none .cnum{color:var(--ink-faint)}
+.cday.future{background:transparent}
+.cday.future .cnum{color:var(--line)}
+.cday.today{outline:2px solid var(--blue);outline-offset:1px}
+.cdot{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--amber)}
+.cday.full .cdot{background:rgba(255,255,255,.9)}
+.cskip{position:absolute;top:2px;right:3px;font-size:8px;color:var(--ink-faint);line-height:1}
+.cday.full .cskip{color:rgba(255,255,255,.85)}
+.cal-key{display:flex;flex-wrap:wrap;gap:11px;justify-content:center;margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.cal-key span{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-faint);font-family:'Spline Sans Mono',monospace}
+.cal-key .k{width:10px;height:10px;border-radius:3px;display:inline-block}
+.cal-key .k.full{background:var(--green)}
+.cal-key .k.part{background:var(--amber-tint);border:1px solid #EFD8B8}
+.cal-key .k.dot{width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.cal-key .k.sk{background:none;font-size:9px;width:auto}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 6px;text-align:center;box-shadow:var(--shadow-sm)}
+.stat b{display:block;font-family:Fraunces;font-size:19px;font-weight:600;line-height:1;color:var(--ink)}
+.stat span{display:block;font-size:9.5px;color:var(--ink-faint);margin-top:4px;line-height:1.25}
 
 /* streak strip */
 .streak{
@@ -390,6 +453,8 @@ nav.tabs{
 const CROSS = '<svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 const CROSS_FILL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/></svg>';
 const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 6"/></svg>';
+const SKIP_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 12h12"/></svg>';
+const SKIP_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/></svg>';
 const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="#DD9445" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>';
 const MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="#6E9BC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14a8 8 0 1 1-9-11 6 6 0 0 0 9 11Z"/></svg>';
@@ -559,9 +624,8 @@ const ROUTINES_MOM = {
 const PHASES_MOM = [
   {wk:[1,2],   name:'Introduce',   freq:2, nights:[1,4],       desc:'Mon & Thu',        micro:'Starting gently, exactly as written on your sheet.'},
   {wk:[3,4],   name:'Build',       freq:3, nights:[1,3,5],     desc:'Mon · Wed · Fri',  micro:'Step up only if the first two weeks felt comfortable.'},
-  {wk:[5,8],   name:'Establish',   freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'Skin is adapting. Redness should be settling, not rising.'},
-  {wk:[9,12],  name:'Consolidate', freq:5, nights:[0,1,2,4,5], desc:'5 nights / week',  micro:'Only if skin is calm and comfortable. No prize for rushing.'},
-  {wk:[13,999],name:'Maintenance', freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'The long-term rhythm that keeps results without over-taxing skin.'},
+  {wk:[5,8],   name:'Establish',   freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'This is your target frequency — no need to go higher.'},
+  {wk:[9,999], name:'Maintenance', freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'Holding steady. Four nights keeps results without over-taxing sensitive skin.'},
 ];
 const TROUBLE_MOM=[
   {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>DermAbsolu</b> morning, night, and a little midday over tight areas.','Drop A313 by one frequency step for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
@@ -593,8 +657,8 @@ const SEASONAL_MOM = [
     'Vinoperfect every morning — it works alongside SPF against pigmentation.',
     'Reapply Anthelios every 2 hours outdoors; consider pausing A313 on heavy-sun holidays.',
     'Heat is a flushing trigger — keep a cool compress handy.']],
-  ['Maintenance (post-week 12)','The sustainable long game.',[
-    'A313 four nights a week keeps results without over-taxing the skin.',
+  ['Maintenance (from week 9)','The sustainable long game.',[
+    'A313 four nights a week — your target frequency, reached at week 5 and held from there.',
     'Vinoperfect + SPF every morning — this is where anti-aging is actually won.',
     'Reassess products as they run out; repurchase the 5-star staples first.']],
 ];
@@ -634,7 +698,7 @@ function switchProfile(id){
   location.search='?who='+id;      // reload cleanly under the new person
 }
 function phaseForWeek(w){ return PHASES.find(p=>w>=p.wk[0]&&w<=p.wk[1]) || PHASES[PHASES.length-1]; }
-/* the ordonnance progress bar — a ramp toward week 12, then a live count toward the payoff milestones */
+/* the tonight-card progress bar — a ramp toward week 12, then a live count toward the payoff milestones */
 function planTrack(w){
   if(w<=12) return {label:'12-week plan',  right:`${w} / 12`,        pct:Math.round(w/12*100), fill:'var(--amber)'};
   if(w<26)  return {label:'to 6 months',   right:`week ${w} / 26`,   pct:Math.round(w/26*100), fill:'var(--green)'};
@@ -669,7 +733,17 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ t
 /* ---------- GitHub auto-backup ----------
    Stored in a SEPARATE key so the token never appears in exports,
    "Copy for Claude", or the committed backup file itself. */
-let GH = (()=>{ try{ return JSON.parse(localStorage.getItem(GHKEY))||{}; }catch(e){ return {}; } })();
+let GH = (()=>{
+  try{
+    let raw=localStorage.getItem(GHKEY);
+    // migrate settings saved before profiles existed (they lived under one shared key)
+    if(!raw && PROFILE==='meghan'){
+      const legacy=localStorage.getItem('leRegime.gh.v1');
+      if(legacy){ localStorage.setItem(GHKEY, legacy); raw=legacy; }
+    }
+    return JSON.parse(raw)||{};
+  }catch(e){ return {}; }
+})();
 function saveGH(){ try{ localStorage.setItem(GHKEY, JSON.stringify(GH)); }catch(e){} }
 function b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
 async function ghPut(path, content, message, branch){
@@ -703,8 +777,10 @@ function weekOfPlan(dateStr=todayISO()){
   const days = Math.floor((d - start)/86400000);
   return Math.max(1, Math.floor(days/7)+1);
 }
+function planStarted(dateStr=todayISO()){ return dateStr >= S.start; }
 function nightType(dateStr=todayISO()){
   if(S.overrides[dateStr]) return S.overrides[dateStr];        // manual single-night override wins
+  if(!planStarted(dateStr)) return 'recovery';                 // no retinoid before the plan begins
   const adj = activeAdjustment(dateStr);
   if(adj && adj.kind==='rest') return 'rest';                  // barrier rest = every night is a rest night
   const w = weekOfPlan(dateStr);
@@ -751,11 +827,33 @@ function endAdjustment(){
 /* ---------- log helpers ---------- */
 function dayLog(dateStr=todayISO()){
   if(!S.logs[dateStr]) S.logs[dateStr] = {am:[], pm:[]};
-  return S.logs[dateStr];
+  const l=S.logs[dateStr];
+  if(!l.skip) l.skip={am:{},pm:{}};
+  if(!l.skip.am) l.skip.am={};
+  if(!l.skip.pm) l.skip.pm={};
+  return l;
 }
 function isStepDone(part, idx, dateStr=todayISO()){ return dayLog(dateStr)[part].includes(idx); }
+function isStepSkipped(part, idx, dateStr=todayISO()){ return !!dayLog(dateStr).skip[part][idx]; }
+function skipReason(part, idx, dateStr=todayISO()){ return dayLog(dateStr).skip[part][idx]; }
+function setSkip(part, idx, reason, dateStr=todayISO()){
+  const l=dayLog(dateStr);
+  if(reason){
+    l.skip[part][idx]=reason;
+    const i=l[part].indexOf(idx); if(i>=0) l[part].splice(i,1);   // skipped ≠ done
+  } else {
+    delete l.skip[part][idx];
+  }
+  save();
+}
+function handledCount(part, dateStr=todayISO()){
+  const l=dayLog(dateStr);
+  return l[part].length + Object.keys(l.skip[part]).length;
+}
 function toggleStep(part, idx, dateStr=todayISO()){
-  const arr = dayLog(dateStr)[part];
+  const l=dayLog(dateStr);
+  delete l.skip[part][idx];                                       // completing clears a skip
+  const arr=l[part];
   const i = arr.indexOf(idx);
   if(i>=0) arr.splice(i,1); else arr.push(idx);
   save();
@@ -772,8 +870,7 @@ function pmSteps(dateStr=todayISO()){ return effectiveSteps(eveningRoutineKey(da
 function amRoutine(){ return ROUTINES.morning; }
 function pmRoutine(dateStr=todayISO()){ return ROUTINES[eveningRoutineKey(dateStr)]; }
 function dayComplete(dateStr=todayISO()){
-  const l = dayLog(dateStr);
-  return l.am.length>=amSteps().length && l.pm.length>=pmSteps(dateStr).length;
+  return handledCount('am',dateStr)>=amSteps().length && handledCount('pm',dateStr)>=pmSteps(dateStr).length;
 }
 function streak(){
   let n=0; const d=new Date();
@@ -811,7 +908,9 @@ function renderToday(){
   // phase progress within 12-week plan
   const track = planTrack(w);
   const adj = activeAdjustment(iso);
-  const freqLabel = adj ? (adj.kind==='rest' ? 'paused · barrier rest' : 'eased one step') : ph.desc;
+  const started = planStarted(iso);
+  const freqLabel = !started ? 'starts '+fmtShort(S.start)
+                  : adj ? (adj.kind==='rest' ? 'paused · barrier rest' : 'eased one step') : ph.desc;
 
   let banner='';
   if(adj){
@@ -828,13 +927,13 @@ function renderToday(){
   <div class="script">
     <div class="script-head">
       <div>
-        <div class="eyebrow">ordonnance · tonight</div>
+        <div class="eyebrow">tonight</div>
         <div class="today-date">${fmtDate(iso)}</div>
       </div>
       <span class="night-badge ${badgeCls}"><span class="dot"></span>${badgeLabel}</span>
     </div>
     <div class="script-body">
-      <div class="rx-line"><span class="k">Retinization phase</span><span class="v">wk ${w} · ${ph.name}</span></div>
+      <div class="rx-line"><span class="k">Retinization phase</span><span class="v">${started?('wk '+w+' · '+ph.name):'not started yet'}</span></div>
       <div class="rx-line"><span class="k">A313 frequency</span><span class="v warm">${freqLabel}</span></div>
       <div class="rx-line"><span class="k">This evening</span><span class="v">${pmSteps().length} steps</span></div>
       <div class="phase-track">
@@ -879,7 +978,7 @@ function weekDots(){
 function routineCard(key, part, iso, micro){
   const routine = ROUTINES[key];
   const stepList = effectiveSteps(key);
-  const done = dayLog(iso)[part].length;
+  const done = handledCount(part, iso);
   const total = stepList.length;
   const complete = done>=total;
   const icon = routine.icon==='sun'?SUN:MOON;
@@ -887,19 +986,21 @@ function routineCard(key, part, iso, micro){
   stepList.forEach((s,idx)=>{
     const prod=P[s.p]; if(!prod) return;
     const on=isStepDone(part,idx,iso);
+    const sk=isStepSkipped(part,idx,iso);
     let meta='';
     if(s.amount) meta+=`<span class="tag">${s.amount}</span>`;
     if(s.area) meta+=`<span class="tag area">${s.area}</span>`;
     if(s.warm) meta+=`<span class="tag warm">${s.warm}</span>`;
     if(s.custom) meta+=`<span class="tag" style="background:var(--green-tint);color:#1C6A45">yours</span>`;
-    steps+=`<div class="step ${on?'on':''}" data-part="${part}" data-idx="${idx}">
-      <div class="check">${CHECK}</div>
+    steps+=`<div class="step ${on?'on':''} ${sk?'skipped':''}" data-part="${part}" data-idx="${idx}">
+      <div class="check">${sk?SKIP_MARK:CHECK}</div>
       <div class="step-body">
         <div class="name">${s.name}</div>
         <div class="prod">${prod.name} · <span style="color:var(--ink-faint)">${prod.brand}</span></div>
         <div class="step-meta">${meta}</div>
-        ${s.note?`<div class="step-note">${s.note}</div>`:''}
+        ${sk?`<div class="skip-note">Skipped · ${skipReason(part,idx,iso)}</div>`:(s.note?`<div class="step-note">${s.note}</div>`:'')}
       </div>
+      <button class="skip-btn" data-skip="${part}:${idx}" title="Skip this step">${SKIP_IC}</button>
     </div>`;
   });
   return `<div class="routine" data-routine>
@@ -915,6 +1016,14 @@ function routineCard(key, part, iso, micro){
 }
 
 function bindRoutineCards(scope, iso){
+  scope.querySelectorAll('.skip-btn').forEach(btn=>{
+    btn.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const [part,idxs]=btn.dataset.skip.split(':'); const idx=+idxs;
+      if(isStepSkipped(part,idx,iso)){ setSkip(part,idx,null,iso); renderToday(); renderTopbar(); toast('Skip removed'); return; }
+      openSkipSheet(part,idx,iso);
+    });
+  });
   scope.querySelectorAll('.step').forEach(el=>{
     el.addEventListener('click',()=>{
       const part=el.dataset.part, idx=+el.dataset.idx;
@@ -924,8 +1033,9 @@ function bindRoutineCards(scope, iso){
       // update count
       const card=el.closest('[data-routine]');
       const total = part==='am'?amSteps().length:pmSteps(iso).length;
-      const done=dayLog(iso)[part].length;
+      const done=handledCount(part,iso);
       const cnt=card.querySelector('.count');
+      el.classList.remove('skipped');
       cnt.childNodes[0].textContent=done+'/'+total;
       cnt.classList.toggle('done',done>=total);
       renderTopbar();
@@ -939,6 +1049,34 @@ function bindRoutineCards(scope, iso){
   });
   scope.querySelectorAll('[data-toggle]').forEach(h=>{
     h.addEventListener('click',()=>h.closest('[data-routine]').classList.toggle('collapsed'));
+  });
+}
+
+const SKIP_REASONS=['Traveling','Too tired','Event / wearing makeup','Out of product','Skin felt sensitive','Deliberate rest','Other'];
+function openSkipSheet(part, idx, iso){
+  const stepList = part==='am'?amSteps():pmSteps(iso);
+  const s=stepList[idx]; const label=s?s.name:'this step';
+  showModal({
+    title:'Skip “'+label+'”?', icon:SKIP_IC, iconBg:'var(--line-soft)',
+    body:`Recorded as an <b>intentional skip</b>, with your reason, so your history stays accurate. It won't break your streak and won't trigger any change to your A313 schedule.`,
+    actions:SKIP_REASONS.map(r=>({label:r, cls:r==='Other'?'ghost':'', onClick:()=>{
+      if(r==='Other'){ promptSkipReason(part,idx,iso); return; }
+      setSkip(part,idx,r,iso); renderToday(); renderTopbar(); toast('Skip logged');
+    }}))
+  });
+}
+function promptSkipReason(part, idx, iso){
+  showModal({
+    title:'Why skipped?', icon:SKIP_IC, iconBg:'var(--line-soft)',
+    body:`<div class="form"><input class="fi" id="skip_r" placeholder="e.g. sunburn, dermatologist said to pause" maxlength="60"></div>`,
+    actions:[{label:'Save skip', cls:'primary', keep:true},{label:'Cancel', cls:'ghost'}],
+    onMount:(ov)=>{
+      const inp=ov.querySelector('#skip_r'); setTimeout(()=>inp.focus(),120);
+      ov.querySelector('.mbtn.primary').addEventListener('click',()=>{
+        const r=inp.value.trim()||'Other';
+        setSkip(part,idx,r,iso); closeModal(); renderToday(); renderTopbar(); toast('Skip logged');
+      });
+    }
   });
 }
 
@@ -1212,7 +1350,9 @@ function renderProgress(){
     <button class="btn" id="jSave">Save entry</button>
   </div>`;
 
+  html+=calendarHTML();
   html+=`<div class="section-label">what to expect</div><div class="tl">`+timelineHTML()+`</div>`;
+  html+=historyHTML();
 
   html+=`<div class="section-label">journal</div><div id="jList"></div>`;
   v.innerHTML=html;
@@ -1229,8 +1369,132 @@ function renderProgress(){
     save(); renderProgress();
     if(!maybeSuggestAdjustment(loggedTags)) toast('Logged');
   });
+  v.querySelectorAll('[data-cal]').forEach(b=>b.addEventListener('click',()=>{
+    calRef.setMonth(calRef.getMonth()+ +b.dataset.cal); renderProgress();
+  }));
+  v.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()=>openDaySheet(b.dataset.day)));
   renderJournal();
 }
+/* ---- calendar & stats ---- */
+let calRef = new Date(); calRef.setDate(1);
+function dayHas(iso){
+  const l=S.logs[iso]; if(!l) return false;
+  return (l.am&&l.am.length)||(l.pm&&l.pm.length)||(l.skip&&(Object.keys(l.skip.am||{}).length||Object.keys(l.skip.pm||{}).length));
+}
+function daySkips(iso){
+  const l=S.logs[iso]; if(!l||!l.skip) return 0;
+  return Object.keys(l.skip.am||{}).length+Object.keys(l.skip.pm||{}).length;
+}
+function dayState(iso){
+  if(iso>todayISO()) return 'future';
+  if(!dayHas(iso)) return 'none';
+  return dayComplete(iso) ? 'full' : 'part';
+}
+function monthStats(y,m){
+  let done=0, tracked=0, a313=0, skips=0, elapsed=0;
+  const last=new Date(y,m+1,0).getDate();
+  for(let d=1; d<=last; d++){
+    const iso=new Date(Date.UTC(y,m,d)).toISOString().slice(0,10);
+    if(iso>todayISO()) continue;
+    if(iso<S.start) continue;
+    elapsed++;
+    if(dayHas(iso)) tracked++;
+    if(dayComplete(iso)) done++;
+    if(nightType(iso)==='a313' && dayComplete(iso)) a313++;
+    skips+=daySkips(iso);
+  }
+  return {done,tracked,a313,skips,elapsed, pct: elapsed?Math.round(done/elapsed*100):0};
+}
+function bestStreak(){
+  const dates=Object.keys(S.logs).filter(dayComplete).sort();
+  let best=0,run=0,prev=null;
+  dates.forEach(d=>{
+    if(prev){ const gap=(new Date(d)-new Date(prev))/86400000; run = gap===1 ? run+1 : 1; }
+    else run=1;
+    prev=d; if(run>best) best=run;
+  });
+  return best;
+}
+function calendarHTML(){
+  const y=calRef.getFullYear(), m=calRef.getMonth();
+  const first=new Date(y,m,1), lead=first.getDay();
+  const last=new Date(y,m+1,0).getDate();
+  const title=first.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const st=monthStats(y,m);
+
+  let cells='';
+  for(let i=0;i<lead;i++) cells+='<div class="cday empty"></div>';
+  for(let d=1; d<=last; d++){
+    const iso=new Date(Date.UTC(y,m,d)).toISOString().slice(0,10);
+    const state=dayState(iso);
+    const isToday = iso===todayISO();
+    const started = iso>=S.start;
+    const a313 = started && nightType(iso)==='a313';
+    const sk=daySkips(iso);
+    cells+=`<button class="cday ${state} ${isToday?'today':''}" data-day="${iso}">
+      <span class="cnum">${d}</span>
+      ${a313?'<span class="cdot"></span>':''}
+      ${sk?'<span class="cskip">⊘</span>':''}
+    </button>`;
+  }
+
+  return `<div class="section-label">calendar</div>
+  <div class="cal">
+    <div class="cal-head">
+      <button class="cnav" data-cal="-1">‹</button>
+      <div class="cal-title">${title}</div>
+      <button class="cnav" data-cal="1">›</button>
+    </div>
+    <div class="cal-dow">${['S','M','T','W','T','F','S'].map(d=>`<span>${d}</span>`).join('')}</div>
+    <div class="cal-grid">${cells}</div>
+    <div class="cal-key">
+      <span><i class="k full"></i>complete</span>
+      <span><i class="k part"></i>partial</span>
+      <span><i class="k dot"></i>A313</span>
+      <span><i class="k sk">⊘</i>skip</span>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>${st.pct}%</b><span>days complete</span></div>
+    <div class="stat"><b>${st.a313}</b><span>A313 nights</span></div>
+    <div class="stat"><b>${streak()}</b><span>current streak</span></div>
+    <div class="stat"><b>${bestStreak()}</b><span>best streak</span></div>
+  </div>`;
+}
+function openDaySheet(iso){
+  const am=amSteps(), pm=pmSteps(iso);
+  const nt=nightType(iso);
+  const label = nt==='a313'?'A313 night' : nt==='rest'?'barrier rest' : 'off night';
+  const started = iso>=S.start;
+  const body = !started
+    ? `<div style="color:var(--ink-faint);font-size:13px">Before your plan started on ${fmtShort(S.start)}.</div>`
+    : `<div class="hsec">Morning</div>${am.map((s,i)=>stepStateLine('am',i,s.name,iso)).join('')}
+       <div class="hsec" style="margin-top:12px">Evening · ${label}</div>${pm.map((s,i)=>stepStateLine('pm',i,s.name,iso)).join('')}`;
+  showModal({ title:fmtDate(iso), body, actions:[{label:'Close', cls:'primary'}] });
+}
+
+function historyHTML(){
+  const counts={}; let totalSkips=0;
+  Object.values(S.logs).forEach(l=>{ if(!l.skip) return;
+    ['am','pm'].forEach(p=>Object.values(l.skip[p]||{}).forEach(r=>{counts[r]=(counts[r]||0)+1; totalSkips++;})); });
+  if(!totalSkips) return '';
+  const chips=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([r,n])=>`<span class="tag">${r} · ${n}</span>`).join('');
+  return `<div class="section-label">intentional skips · ${totalSkips}</div>
+    <div class="info" style="padding:13px 15px">
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+      <p style="font-size:11.5px;color:var(--ink-faint);margin-top:9px;line-height:1.5">Tap any day in the calendar to see exactly what was done or skipped. Skips never change your A313 schedule.</p>
+    </div>`;
+}
+
+function stepStateLine(part, idx, name, iso){
+  if(isStepDone(part,idx,iso))
+    return `<div class="hz"><span class="hzi done">✓</span><span class="hzn">${name}</span></div>`;
+  if(isStepSkipped(part,idx,iso))
+    return `<div class="hz"><span class="hzi skip">⊘</span><span class="hzn skipped">${name}</span><span class="hzr">${skipReason(part,idx,iso)}</span></div>`;
+  return `<div class="hz"><span class="hzi none">·</span><span class="hzn none">${name}</span><span class="hzr">not logged</span></div>`;
+}
+
 function timelineHTML(){
   const w=weekOfPlan();
   const items=[

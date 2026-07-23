@@ -18,7 +18,7 @@ An offline-capable phone app for running your daily routines, managing the A313 
 
 ## What it does
 
-- **Today** — an *ordonnance* (prescription) card tells you tonight's plan: which phase week you're in, whether tonight is an A313 night, and the exact AM/PM checklist. Tap steps to complete them; the pharmacy cross fills when the day is done, and your streak builds.
+- **Today** — a **Tonight** card shows your plan for the day: which phase week you're in, whether tonight is an A313 night, and the exact AM/PM checklist. Tap steps to complete them; the pharmacy cross fills when the day is done, and your streak builds.
 - **Routines** — all four evening variants (A313 / off-night / barrier-rest) plus morning, and seasonal + travel + maintenance guidance.
 - **Products** — your shelf with star ratings and **usage management**: mark a product "opened" and it estimates how many days of use remain and flags when to reorder. **Add your own products** with the *Add a product* button (name, brand, life estimate, and optionally which routines it joins so it shows up in your checklist), and **remove** ones you don't use — built-ins go to a *Removed* list you can restore from; custom ones delete outright.
 - **More** — troubleshooting flows, the science in plain English, lifestyle tips, setup (A313 start date, tonight override), and a **Backup & updates** section: **Export** a `.json` backup, **Import** one back, or **Copy my data for Claude** to paste into chat. This is the update loop — when Claude sends a new `index.html`, replace the file, open the app, and *Import* your backup to carry every log and custom product across.
@@ -26,6 +26,18 @@ An offline-capable phone app for running your daily routines, managing the A313 
 - **More** — troubleshooting flows (dry / peeling / burning / red / purging / sensitive), the science in plain English, lifestyle tips, and setup (A313 start date, tonight override, backup/reset).
 
 All data lives in your browser via `localStorage` — private to your device, works offline. Use **More → Export** to back it up.
+
+## Skips
+
+Every step has a small ⊘ button. Tapping it records an **intentional skip** with a reason (Traveling, Too tired, Event, Out of product, Skin felt sensitive, Deliberate rest, or your own text).
+
+A skip is deliberately *not* a symptom: it never triggers an A313 schedule change, and it counts toward the day being complete so your streak survives. Tap ⊘ again to undo.
+
+**Seeing your history:** the **Progress** tab opens with a **month calendar**. Each day is colour-coded — solid green for a fully completed day, amber for partial, blank for untracked — with a small amber dot marking A313 nights and a ⊘ on days with an intentional skip. Arrows move between months. **Tap any day** to see that date's full breakdown: every morning and evening step marked done ✓, skipped ⊘ with its reason, or not logged. Below the calendar, four stats summarise the month: percent of days complete, A313 nights done, current streak and best-ever streak.
+
+## A313 nights and the start date
+
+A313 nights fall on **fixed weekdays** defined per phase (Mom starts Mon & Thu; Meghan starts Tue & Sat). The **start date** sets which *week* of the plan you're in — it does not move which weekdays are retinoid nights. Before the start date, no A313 night is ever scheduled: the app shows "not started yet" and gives the plain evening routine.
 
 ## Deploy to GitHub Pages
 
