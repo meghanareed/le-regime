@@ -191,11 +191,11 @@ main{padding:4px 16px 24px}
 .cal-title{font-family:Fraunces;font-size:16px;font-weight:600;letter-spacing:-.01em}
 .cnav{width:32px;height:32px;border-radius:9px;background:var(--line-soft);color:var(--ink-soft);font-size:17px;line-height:1;display:grid;place-items:center}
 .cnav:active{background:var(--line)}
-.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:5px}
+.cal-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-bottom:5px}
 .cal-dow span{text-align:center;font-family:'Spline Sans Mono',monospace;font-size:9.5px;color:var(--ink-faint);letter-spacing:.04em}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cday{aspect-ratio:1;border-radius:9px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--paper);border:1px solid transparent}
-.cday.empty{background:transparent}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cday{width:100%;aspect-ratio:1;min-width:0;border-radius:9px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--paper);border:1px solid transparent;padding:0}
+.cday.empty{background:transparent;pointer-events:none}
 .cnum{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--ink-soft);font-weight:500}
 .cday.full{background:var(--green);}
 .cday.full .cnum{color:#fff;font-weight:600}
@@ -216,10 +216,46 @@ main{padding:4px 16px 24px}
 .cal-key .k.part{background:var(--amber-tint);border:1px solid #EFD8B8}
 .cal-key .k.dot{width:5px;height:5px;border-radius:50%;background:var(--amber)}
 .cal-key .k.sk{background:none;font-size:9px;width:auto}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 6px;text-align:center;box-shadow:var(--shadow-sm)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:11px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 4px;text-align:center;box-shadow:var(--shadow-sm);min-width:0}
 .stat b{display:block;font-family:Fraunces;font-size:19px;font-weight:600;line-height:1;color:var(--ink)}
 .stat span{display:block;font-size:9.5px;color:var(--ink-faint);margin-top:4px;line-height:1.25}
+
+/* segmented toggle */
+.seg{display:flex;gap:4px;background:var(--line-soft);padding:3px;border-radius:11px;margin-bottom:11px}
+.segb{flex:1;padding:8px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.segb.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+
+/* agenda */
+.ag-row{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);
+  border-radius:var(--r-sm);padding:11px 13px;margin-bottom:7px;box-shadow:var(--shadow-sm)}
+.ag-row.full{border-left-color:var(--green)}
+.ag-head{display:flex;align-items:center;gap:8px}
+.ag-date{font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:600;color:var(--ink)}
+.ag-counts{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--ink-soft)}
+.ag-go{color:var(--ink-faint);font-size:15px;line-height:1}
+.ag-skip{font-size:11.5px;color:var(--ink-soft);background:var(--line-soft);padding:5px 9px;border-radius:7px;margin-top:6px}
+.ag-skip b{color:var(--ink);font-weight:600}
+
+/* product skips */
+.pskip-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin-top:11px;padding:9px 11px;
+  background:var(--line-soft);border-radius:9px}
+.pskip-ic{color:var(--ink-faint);font-size:12px;flex:none}
+.pskip-tx{flex:1;font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+.pskip-tx b{color:var(--ink)}
+.pskip-go{color:var(--ink-faint);font-size:15px;line-height:1;flex:none}
+.pskip-card{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 13px;margin-bottom:7px;box-shadow:var(--shadow-sm)}
+.pskip-l{flex:1;min-width:0}
+.pskip-n{font-size:13.5px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+.pskip-s{font-size:11px;color:var(--ink-faint);margin-top:2px}
+.pskip-r{text-align:right;flex:none}
+.pskip-r b{font-family:'Spline Sans Mono',monospace;font-size:14px;color:var(--ink)}
+.pskip-run{display:block;font-family:'Spline Sans Mono',monospace;font-size:9.5px;color:var(--amber-ink);background:var(--amber-tint);padding:1px 6px;border-radius:5px;margin-top:3px}
+.pskip-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:2px}
+.pskip-stats div{background:var(--line-soft);border-radius:9px;padding:10px 4px;text-align:center}
+.pskip-stats b{display:block;font-family:Fraunces;font-size:18px;font-weight:600;color:var(--ink);line-height:1}
+.pskip-stats span{display:block;font-size:9.5px;color:var(--ink-faint);margin-top:3px}
 
 /* streak strip */
 .streak{
@@ -834,17 +870,56 @@ function dayLog(dateStr=todayISO()){
   return l;
 }
 function isStepDone(part, idx, dateStr=todayISO()){ return dayLog(dateStr)[part].includes(idx); }
+function skipEntry(part, idx, dateStr=todayISO()){
+  const v=dayLog(dateStr).skip[part][idx];
+  if(!v) return null;
+  return typeof v==='string' ? {r:v, p:null, n:null} : v;   // legacy skips were bare strings
+}
 function isStepSkipped(part, idx, dateStr=todayISO()){ return !!dayLog(dateStr).skip[part][idx]; }
-function skipReason(part, idx, dateStr=todayISO()){ return dayLog(dateStr).skip[part][idx]; }
+function skipReason(part, idx, dateStr=todayISO()){ const e=skipEntry(part,idx,dateStr); return e?e.r:''; }
 function setSkip(part, idx, reason, dateStr=todayISO()){
   const l=dayLog(dateStr);
   if(reason){
-    l.skip[part][idx]=reason;
+    const list = part==='am'?amSteps():pmSteps(dateStr);
+    const s=list[idx]||{};
+    l.skip[part][idx]={r:reason, p:s.p||null, n:s.name||null};   // pin the product, not just the position
     const i=l[part].indexOf(idx); if(i>=0) l[part].splice(i,1);   // skipped ≠ done
   } else {
     delete l.skip[part][idx];
   }
   save();
+}
+
+/* ---- per-product skip history ---- */
+function skipsByProduct(){
+  const map={};
+  Object.keys(S.logs).forEach(date=>{
+    const l=S.logs[date]; if(!l.skip) return;
+    ['am','pm'].forEach(part=>{
+      Object.entries(l.skip[part]||{}).forEach(([idx,v])=>{
+        const e = typeof v==='string' ? {r:v,p:null,n:null} : v;
+        let pid=e.p, name=e.n;
+        if(!pid){                                                 // resolve legacy entries positionally
+          const list = part==='am'?amSteps():pmSteps(date);
+          const s=list[+idx]; if(s){ pid=s.p; name=s.name; }
+        }
+        if(!pid) return;
+        (map[pid]=map[pid]||[]).push({date, part, reason:e.r, name});
+      });
+    });
+  });
+  Object.values(map).forEach(a=>a.sort((x,y)=>y.date.localeCompare(x.date)));
+  return map;
+}
+function currentRun(list){                                        // consecutive days ending at the newest skip
+  if(!list.length) return 0;
+  const days=[...new Set(list.map(x=>x.date))].sort().reverse();
+  let run=1;
+  for(let i=1;i<days.length;i++){
+    const gap=(new Date(days[i-1])-new Date(days[i]))/86400000;
+    if(gap===1) run++; else break;
+  }
+  return run;
 }
 function handledCount(part, dateStr=todayISO()){
   const l=dayLog(dateStr);
@@ -1195,6 +1270,7 @@ function seasonalCard(title,sub,points){
 /* ---- PRODUCTS ---- */
 function renderProducts(){
   const v=document.getElementById('v-products');
+  const SKIPMAP=skipsByProduct();
   let html=`<button class="btn ghost" id="addProdBtn" style="margin:6px 0 14px;display:flex;align-items:center;justify-content:center;gap:8px">
     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Add a product</button>`;
   html+='<div class="section-label">shelf · tap “opened” to track usage</div>';
@@ -1222,6 +1298,14 @@ function renderProducts(){
         <div class="status" style="color:var(--ink-faint)">Not opened yet — tap when you start it</div>
         <button class="btn-sm" data-open="${p.id}">Mark opened</button></div></div>`;
     }
+    const skipList=(SKIPMAP[p.id])||[];
+    const skipDays=[...new Set(skipList.map(x=>x.date))];
+    const run=currentRun(skipList);
+    const skipRow = skipDays.length ? `<button class="pskip-row" data-pskip="${p.id}">
+        <span class="pskip-ic">⊘</span>
+        <span class="pskip-tx">Skipped <b>${skipDays.length}×</b>${run>1?` · <b style="color:var(--amber-ink)">${run} days running</b>`:''} · last ${fmtShort(skipDays[0])}</span>
+        <span class="pskip-go">›</span>
+      </button>` : '';
     html+=`<div class="prod-card">
       <div class="prod-top">
         <div class="prod-thumb" style="background:${p.color||'#6E9BC0'}">${(p.brand||p.name||'·')[0]}</div>
@@ -1235,6 +1319,7 @@ function renderProducts(){
         </button>
       </div>
       ${p.note?`<p style="font-size:12.5px;color:var(--ink-soft);margin-top:11px;line-height:1.5">${p.note}</p>`:''}
+      ${skipRow}
       ${usage}
     </div>`;
   });
@@ -1257,6 +1342,7 @@ function renderProducts(){
   v.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>{
     if(confirm('Reset the opened date for this product?')){ delete S.opened[b.dataset.reset]; save(); renderProducts(); }
   }));
+  v.querySelectorAll('[data-pskip]').forEach(b=>b.addEventListener('click',()=>openProductSkips(b.dataset.pskip)));
   v.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeProduct(b.dataset.remove)));
   v.querySelectorAll('[data-restore]').forEach(b=>b.addEventListener('click',()=>{
     S.hidden=(S.hidden||[]).filter(id=>id!==b.dataset.restore); save(); rebuildP(); renderProducts(); renderTopbar(); toast('Restored');
@@ -1369,6 +1455,10 @@ function renderProgress(){
     save(); renderProgress();
     if(!maybeSuggestAdjustment(loggedTags)) toast('Logged');
   });
+  v.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{
+    progView=b.dataset.view; renderProgress();
+  }));
+  v.querySelectorAll('[data-pskip]').forEach(b=>b.addEventListener('click',()=>openProductSkips(b.dataset.pskip)));
   v.querySelectorAll('[data-cal]').forEach(b=>b.addEventListener('click',()=>{
     calRef.setMonth(calRef.getMonth()+ +b.dataset.cal); renderProgress();
   }));
@@ -1415,12 +1505,42 @@ function bestStreak(){
   });
   return best;
 }
+let progView='cal';
+function agendaHTML(){
+  const dates=Object.keys(S.logs).filter(dayHas).sort().reverse().slice(0,45);
+  if(!dates.length) return `<div class="empty"><p>Nothing logged yet. Days appear here as you tick them off.</p></div>`;
+  return dates.map(iso=>{
+    const nt=nightType(iso);
+    const badge = nt==='a313'?'<span class="hbadge a313">A313</span>'
+                : nt==='rest'?'<span class="hbadge rest">rest</span>'
+                : '<span class="hbadge off">off</span>';
+    const am=amSteps().length, pm=pmSteps(iso).length;
+    const full=dayComplete(iso);
+    const l=dayLog(iso);
+    const skips=[];
+    ['am','pm'].forEach(part=>Object.keys(l.skip[part]||{}).forEach(idx=>{
+      const e=skipEntry(part,+idx,iso);
+      const nm=e.n || ((part==='am'?amSteps():pmSteps(iso))[+idx]||{}).name || 'step';
+      skips.push(`<div class="ag-skip">⊘ <b>${nm}</b> — ${e.r}</div>`);
+    }));
+    return `<button class="ag-row ${full?'full':''}" data-day="${iso}">
+      <div class="ag-head">
+        <span class="ag-date">${fmtShort(iso)}</span>
+        ${badge}
+        <span class="ag-counts">${handledCount('am',iso)}/${am} · ${handledCount('pm',iso)}/${pm}</span>
+        <span class="ag-go">›</span>
+      </div>
+      ${skips.join('')}
+    </button>`;
+  }).join('');
+}
 function calendarHTML(){
   const y=calRef.getFullYear(), m=calRef.getMonth();
   const first=new Date(y,m,1), lead=first.getDay();
   const last=new Date(y,m+1,0).getDate();
   const title=first.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   const st=monthStats(y,m);
+  const pctLabel = st.elapsed ? st.pct+'%' : '—';
 
   let cells='';
   for(let i=0;i<lead;i++) cells+='<div class="cday empty"></div>';
@@ -1438,8 +1558,12 @@ function calendarHTML(){
     </button>`;
   }
 
-  return `<div class="section-label">calendar</div>
-  <div class="cal">
+  return `<div class="section-label">history</div>
+  <div class="seg">
+    <button class="segb ${progView==='cal'?'on':''}" data-view="cal">Calendar</button>
+    <button class="segb ${progView==='agenda'?'on':''}" data-view="agenda">Agenda</button>
+  </div>
+  ${progView==='agenda' ? agendaHTML() : `<div class="cal">
     <div class="cal-head">
       <button class="cnav" data-cal="-1">‹</button>
       <div class="cal-title">${title}</div>
@@ -1453,14 +1577,51 @@ function calendarHTML(){
       <span><i class="k dot"></i>A313</span>
       <span><i class="k sk">⊘</i>skip</span>
     </div>
-  </div>
+  </div>`}
   <div class="stats">
-    <div class="stat"><b>${st.pct}%</b><span>days complete</span></div>
+    <div class="stat"><b>${pctLabel}</b><span>days complete</span></div>
     <div class="stat"><b>${st.a313}</b><span>A313 nights</span></div>
     <div class="stat"><b>${streak()}</b><span>current streak</span></div>
     <div class="stat"><b>${bestStreak()}</b><span>best streak</span></div>
   </div>`;
 }
+function openProductSkips(pid){
+  const list=(skipsByProduct()[pid])||[];
+  const prod=P[pid];
+  if(!list.length){ toast('No skips recorded'); return; }
+  const run=currentRun(list);
+  const first=list[list.length-1];
+  const counts={}; list.forEach(x=>counts[x.reason]=(counts[x.reason]||0)+1);
+  const chips=Object.entries(counts).sort((a,b)=>b[1]-a[1])
+    .map(([r,n])=>`<span class="tag">${r} · ${n}</span>`).join('');
+  const days=[...new Set(list.map(x=>x.date))];
+  const since=Math.max(1,Math.round((Date.now()-new Date(first.date+'T00:00'))/86400000));
+  const rate=Math.round(days.length/since*7*10)/10;
+
+  const rows=list.map(x=>`<div class="hz" style="padding:6px 0;border-bottom:1px solid var(--line-soft)">
+      <span class="hzi skip">⊘</span>
+      <span class="hzn" style="font-family:'Spline Sans Mono',monospace;font-size:11.5px">${fmtShort(x.date)}</span>
+      <span class="hzr" style="font-size:11px;color:var(--ink-soft)">${x.reason}</span>
+    </div>`).join('');
+
+  showModal({
+    title:prod?prod.name:'Skips', icon:SKIP_IC, iconBg:'var(--line-soft)',
+    body:`
+      <div class="pskip-stats">
+        <div><b>${days.length}</b><span>days skipped</span></div>
+        <div><b>${run>1?run:'—'}</b><span>current run</span></div>
+        <div><b>${rate}</b><span>per week</span></div>
+      </div>
+      <div class="hsec" style="margin-top:14px">First time — ${fmtShort(first.date)}</div>
+      <div style="font-size:13px;color:var(--ink);background:var(--line-soft);padding:9px 11px;border-radius:9px;margin-top:4px">${first.reason}</div>
+      <div class="hsec" style="margin-top:14px">Reasons</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">${chips}</div>
+      <div class="hsec" style="margin-top:14px">Every skip</div>
+      <div style="max-height:34vh;overflow-y:auto">${rows}</div>`,
+    actions:[{label:'Close', cls:'primary'}]
+  });
+}
+
 function openDaySheet(iso){
   const am=amSteps(), pm=pmSteps(iso);
   const nt=nightType(iso);
@@ -1474,17 +1635,28 @@ function openDaySheet(iso){
 }
 
 function historyHTML(){
-  const counts={}; let totalSkips=0;
-  Object.values(S.logs).forEach(l=>{ if(!l.skip) return;
-    ['am','pm'].forEach(p=>Object.values(l.skip[p]||{}).forEach(r=>{counts[r]=(counts[r]||0)+1; totalSkips++;})); });
-  if(!totalSkips) return '';
-  const chips=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5)
-    .map(([r,n])=>`<span class="tag">${r} · ${n}</span>`).join('');
-  return `<div class="section-label">intentional skips · ${totalSkips}</div>
-    <div class="info" style="padding:13px 15px">
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
-      <p style="font-size:11.5px;color:var(--ink-faint);margin-top:9px;line-height:1.5">Tap any day in the calendar to see exactly what was done or skipped. Skips never change your A313 schedule.</p>
-    </div>`;
+  const map=skipsByProduct();
+  const rows=Object.entries(map).map(([pid,list])=>{
+    const prod=P[pid];
+    const days=[...new Set(list.map(x=>x.date))];
+    const run=currentRun(list);
+    const top=Object.entries(list.reduce((a,x)=>{a[x.reason]=(a[x.reason]||0)+1;return a;},{}))
+      .sort((a,b)=>b[1]-a[1])[0];
+    return {pid, name:prod?prod.name:(list[0].name||'Removed product'), n:days.length, run, top:top?top[0]:'', last:days[0]};
+  }).sort((a,b)=>b.n-a.n);
+  if(!rows.length) return '';
+  return `<div class="section-label">skips by product</div>
+    ${rows.map(r=>`<button class="pskip-card" data-pskip="${r.pid}">
+      <div class="pskip-l">
+        <div class="pskip-n">${r.name}</div>
+        <div class="pskip-s">mostly “${r.top}” · last ${fmtShort(r.last)}</div>
+      </div>
+      <div class="pskip-r">
+        <b>${r.n}×</b>${r.run>1?`<span class="pskip-run">${r.run} in a row</span>`:''}
+      </div>
+      <span class="pskip-go">›</span>
+    </button>`).join('')}
+    <p style="font-size:11.5px;color:var(--ink-faint);margin:8px 4px 0;line-height:1.5">Tap a product to see every skip and why. Skips never change your A313 schedule.</p>`;
 }
 
 function stepStateLine(part, idx, name, iso){
