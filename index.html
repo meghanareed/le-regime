@@ -257,6 +257,14 @@ main{padding:4px 16px 24px}
 .pskip-stats b{display:block;font-family:Fraunces;font-size:18px;font-weight:600;color:var(--ink);line-height:1}
 .pskip-stats span{display:block;font-size:9.5px;color:var(--ink-faint);margin-top:3px}
 
+/* cadence badges */
+.cad-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cad{font-family:'Spline Sans Mono',monospace;font-size:10px;padding:3px 8px;border-radius:6px;background:var(--blue-tint);color:#2E5677}
+.cad.asneeded{background:var(--line-soft);color:var(--ink-soft)}
+.cad.season.on{background:var(--green-tint);color:#1C6A45}
+.cad.season.off{background:var(--line-soft);color:var(--ink-faint)}
+.info.now{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-tint)}
+
 /* streak strip */
 .streak{
   display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
@@ -748,7 +756,11 @@ function planTrack(w){
 /* ---------- state ---------- */
 let KEY, GHKEY;
 applyProfile();                    // sets PRODUCTS/ROUTINES/PHASES + storage keys for this person
-const todayISO = ()=> new Date().toISOString().slice(0,10);
+const pad2=n=>String(n).padStart(2,'0');
+/* local calendar date — NEVER toISOString(), which is UTC and rolls over
+   in the evening for anyone west of Greenwich (the exact time a PM routine happens). */
+const isoOf = d => d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+const todayISO = ()=> isoOf(new Date());
 function normalize(s){
   if(!s || typeof s!=='object') s = {};
   s.start = s.start || todayISO();
@@ -839,7 +851,7 @@ function fmtDate(dateStr){
 function fmtShort(dateStr){
   return new Date(dateStr+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 }
-function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return isoOf(d); }
 function untilSunday(){ const dow=new Date().getDay(); const add=(7-dow)%7; return addDays(add===0?7:add); }
 
 /* ---------- reactive adjustments (symptom → plan change) ---------- */
@@ -861,13 +873,17 @@ function endAdjustment(){
 }
 
 /* ---------- log helpers ---------- */
-function dayLog(dateStr=todayISO()){
-  if(!S.logs[dateStr]) S.logs[dateStr] = {am:[], pm:[]};
+function dayLog(dateStr=todayISO()){            // read-only view; never creates storage
   const l=S.logs[dateStr];
+  if(!l) return {am:[],pm:[],skip:{am:{},pm:{}}};
   if(!l.skip) l.skip={am:{},pm:{}};
   if(!l.skip.am) l.skip.am={};
   if(!l.skip.pm) l.skip.pm={};
   return l;
+}
+function dayLogW(dateStr=todayISO()){           // writable; creates on demand
+  if(!S.logs[dateStr]) S.logs[dateStr]={am:[],pm:[],skip:{am:{},pm:{}}};
+  return dayLog(dateStr);
 }
 function isStepDone(part, idx, dateStr=todayISO()){ return dayLog(dateStr)[part].includes(idx); }
 function skipEntry(part, idx, dateStr=todayISO()){
@@ -878,9 +894,9 @@ function skipEntry(part, idx, dateStr=todayISO()){
 function isStepSkipped(part, idx, dateStr=todayISO()){ return !!dayLog(dateStr).skip[part][idx]; }
 function skipReason(part, idx, dateStr=todayISO()){ const e=skipEntry(part,idx,dateStr); return e?e.r:''; }
 function setSkip(part, idx, reason, dateStr=todayISO()){
-  const l=dayLog(dateStr);
+  const l=dayLogW(dateStr);
   if(reason){
-    const list = part==='am'?amSteps():pmSteps(dateStr);
+    const list = part==='am'?amSteps(dateStr):pmSteps(dateStr);
     const s=list[idx]||{};
     l.skip[part][idx]={r:reason, p:s.p||null, n:s.name||null};   // pin the product, not just the position
     const i=l[part].indexOf(idx); if(i>=0) l[part].splice(i,1);   // skipped ≠ done
@@ -900,7 +916,7 @@ function skipsByProduct(){
         const e = typeof v==='string' ? {r:v,p:null,n:null} : v;
         let pid=e.p, name=e.n;
         if(!pid){                                                 // resolve legacy entries positionally
-          const list = part==='am'?amSteps():pmSteps(date);
+          const list = part==='am'?amSteps(date):pmSteps(date);
           const s=list[+idx]; if(s){ pid=s.p; name=s.name; }
         }
         if(!pid) return;
@@ -926,31 +942,47 @@ function handledCount(part, dateStr=todayISO()){
   return l[part].length + Object.keys(l.skip[part]).length;
 }
 function toggleStep(part, idx, dateStr=todayISO()){
-  const l=dayLog(dateStr);
+  const l=dayLogW(dateStr);
   delete l.skip[part][idx];                                       // completing clears a skip
   const arr=l[part];
   const i = arr.indexOf(idx);
   if(i>=0) arr.splice(i,1); else arr.push(idx);
   save();
 }
-function effectiveSteps(key){
+/* seasons (northern hemisphere): cooler Oct–Mar, warmer Apr–Sep */
+function seasonOf(dateStr=todayISO()){
+  const m=new Date(dateStr+'T00:00').getMonth();
+  return (m>=9||m<=2) ? 'cool' : 'warm';
+}
+function seasonLabel(s){ return s==='cool'?'cooler months':'warmer months'; }
+function productActive(cp, dateStr=todayISO()){
+  if(cp.season && cp.season!=='all' && cp.season!==seasonOf(dateStr)) return false;
+  const f=cp.freq||'always';
+  if(f==='asneeded') return false;                       // shelf only, never in the checklist
+  if(f==='days'){
+    const dow=new Date(dateStr+'T00:00').getDay();
+    return (cp.days||[]).includes(dow);
+  }
+  return true;
+}
+function effectiveSteps(key, dateStr=todayISO()){
   const base = ROUTINES[key].steps.filter(s=>!isHidden(s.p) && P[s.p]);
   const extra = customList()
-    .filter(cp=>(cp.routines||[]).includes(key))
-    .map(cp=>({p:cp.id, name:cp.stepLabel||cp.role||'Apply', amount:cp.amount||'', area:cp.area||'', custom:true}));
+    .filter(cp=>(cp.routines||[]).includes(key) && productActive(cp, dateStr))
+    .map(cp=>({p:cp.id, name:cp.stepLabel||cp.role||cp.name, amount:cp.amount||'', area:cp.area||'', custom:true}));
   return base.concat(extra);
 }
-function amSteps(){ return effectiveSteps('morning'); }
-function pmSteps(dateStr=todayISO()){ return effectiveSteps(eveningRoutineKey(dateStr)); }
+function amSteps(dateStr=todayISO()){ return effectiveSteps('morning', dateStr); }
+function pmSteps(dateStr=todayISO()){ return effectiveSteps(eveningRoutineKey(dateStr), dateStr); }
 function amRoutine(){ return ROUTINES.morning; }
 function pmRoutine(dateStr=todayISO()){ return ROUTINES[eveningRoutineKey(dateStr)]; }
 function dayComplete(dateStr=todayISO()){
-  return handledCount('am',dateStr)>=amSteps().length && handledCount('pm',dateStr)>=pmSteps(dateStr).length;
+  return handledCount('am',dateStr)>=amSteps(dateStr).length && handledCount('pm',dateStr)>=pmSteps(dateStr).length;
 }
 function streak(){
   let n=0; const d=new Date();
   for(let i=0;i<400;i++){
-    const iso = d.toISOString().slice(0,10);
+    const iso = isoOf(d);
     if(i===0 && !dayComplete(iso)){ d.setDate(d.getDate()-1); continue; } // today not done yet doesn't break
     if(dayComplete(iso)) n++; else break;
     d.setDate(d.getDate()-1);
@@ -974,6 +1006,26 @@ function renderTopbar(){
 }
 
 /* ---- TODAY ---- */
+/* Entries saved under a future date by the old UTC-rollover bug. */
+function futureLogs(){ return Object.keys(S.logs).filter(d=>d>todayISO() && dayHas(d)).sort(); }
+function repairFutureLogs(){
+  const list=futureLogs(); if(!list.length) return;
+  list.forEach(f=>{
+    const d=new Date(f+'T00:00'); d.setDate(d.getDate()-1);
+    const target=isoOf(d);
+    const src=S.logs[f];
+    if(!S.logs[target]) S.logs[target]={am:[],pm:[],skip:{am:{},pm:{}}};
+    const t=S.logs[target];
+    if(!t.skip) t.skip={am:{},pm:{}};
+    ['am','pm'].forEach(part=>{
+      (src[part]||[]).forEach(i=>{ if(!t[part].includes(i)) t[part].push(i); });
+      Object.assign(t.skip[part], (src.skip&&src.skip[part])||{});
+    });
+    delete S.logs[f];
+  });
+  save(); renderTopbar(); renderToday(); toast('Entries moved to the right day');
+}
+
 function renderToday(){
   const v=document.getElementById('v-today');
   const iso=todayISO(); const w=weekOfPlan(); const ph=phaseForWeek(w);
@@ -988,6 +1040,15 @@ function renderToday(){
                   : adj ? (adj.kind==='rest' ? 'paused · barrier rest' : 'eased one step') : ph.desc;
 
   let banner='';
+  const stranded=futureLogs();
+  if(stranded.length){
+    banner += `<div class="adj-banner ease">
+      <div class="adj-ic">${EASE_IC}</div>
+      <div class="adj-tx"><b>${stranded.length} entr${stranded.length>1?'ies':'y'} on the wrong day</b>
+        <span>saved as ${fmtShort(stranded[0])}${stranded.length>1?' +'+(stranded.length-1):''} · timezone bug, now fixed</span></div>
+      <button class="adj-end" id="fixDates">Move back</button>
+    </div>`;
+  }
   if(adj){
     const isRest = adj.kind==='rest';
     banner = `<div class="adj-banner ${isRest?'rest':'ease'}">
@@ -1034,6 +1095,8 @@ function renderToday(){
   </div>`;
 
   v.innerHTML=html;
+  const fixBtn=v.querySelector('#fixDates');
+  if(fixBtn) fixBtn.addEventListener('click',repairFutureLogs);
   const endBtn=v.querySelector('#adjEnd');
   if(endBtn) endBtn.addEventListener('click',endAdjustment);
   bindRoutineCards(v, iso);
@@ -1042,7 +1105,7 @@ function renderToday(){
 function weekDots(){
   const out=[]; const d=new Date(); d.setDate(d.getDate()-6);
   for(let i=0;i<7;i++){
-    const iso=d.toISOString().slice(0,10);
+    const iso=isoOf(d);
     const isToday = iso===todayISO();
     out.push(`<span class="d ${dayComplete(iso)?'f':''} ${isToday?'t':''}"></span>`);
     d.setDate(d.getDate()+1);
@@ -1052,7 +1115,7 @@ function weekDots(){
 
 function routineCard(key, part, iso, micro){
   const routine = ROUTINES[key];
-  const stepList = effectiveSteps(key);
+  const stepList = effectiveSteps(key, iso);
   const done = handledCount(part, iso);
   const total = stepList.length;
   const complete = done>=total;
@@ -1107,7 +1170,7 @@ function bindRoutineCards(scope, iso){
       el.classList.toggle('on');
       // update count
       const card=el.closest('[data-routine]');
-      const total = part==='am'?amSteps().length:pmSteps(iso).length;
+      const total = part==='am'?amSteps(iso).length:pmSteps(iso).length;
       const done=handledCount(part,iso);
       const cnt=card.querySelector('.count');
       el.classList.remove('skipped');
@@ -1129,7 +1192,7 @@ function bindRoutineCards(scope, iso){
 
 const SKIP_REASONS=['Traveling','Too tired','Event / wearing makeup','Out of product','Skin felt sensitive','Deliberate rest','Other'];
 function openSkipSheet(part, idx, iso){
-  const stepList = part==='am'?amSteps():pmSteps(iso);
+  const stepList = part==='am'?amSteps(iso):pmSteps(iso);
   const s=stepList[idx]; const label=s?s.name:'this step';
   showModal({
     title:'Skip “'+label+'”?', icon:SKIP_IC, iconBg:'var(--line-soft)',
@@ -1187,11 +1250,12 @@ const EASE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#8A5316" stroke-widt
 const PURGE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#1C6A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v0M12 8v8M9 12l3 3 3-3"/><circle cx="12" cy="12" r="9"/></svg>';
 
 /* ---- decide whether a logged symptom warrants an offer ---- */
-function maybeSuggestAdjustment(tags){
-  const has=t=>tags.includes(t);
-  if(has('red')||has('stinging')) { suggestRest(tags); return true; }   // strongest: pause everything
-  if(has('peeling')||has('dry'))  { suggestEase(tags); return true; }   // buffer + step down
-  if(has('breakout')||has('purging')) { suggestPurge(); return true; }  // reassure, hold steady
+function maybeSuggestAdjustment(tags, text){
+  const t=(text||'').toLowerCase();
+  const has=k=>tags.includes(k) || new RegExp('\\b'+k).test(t);
+  if(has('red')||has('sting')||has('burn')) { suggestRest(tags.length?tags:['irritation']); return true; }
+  if(has('peel')||has('dry')||has('flak'))  { suggestEase(tags.length?tags:['dryness']); return true; }
+  if(has('breakout')||has('purg')||has('spot')) { suggestPurge(); return true; }
   return false;
 }
 function suggestRest(tags){
@@ -1242,7 +1306,11 @@ function renderRoutines(){
     html+=staticRoutine(k);
   });
   html+='<div class="section-label">seasonal & situational</div>';
-  SEASONAL.forEach(([t,s,pts])=>{ html+=seasonalCard(t,s,pts); });
+  const nowSeason = seasonOf()==='cool' ? 'Winter' : 'Summer';
+  SEASONAL.forEach(([t,s,pts])=>{
+    const now = t===nowSeason;
+    html+=seasonalCard(t + (now?' <span class="tag" style="background:var(--blue-tint);color:#2E5677">now</span>':''), s, pts, now);
+  });
   v.innerHTML=html;
 }
 function staticRoutine(key){
@@ -1261,8 +1329,8 @@ function staticRoutine(key){
     <div class="title"><div class="ic ${r.icon}">${icon}</div><div><h3>${r.label}</h3><div class="sub">${r.tag}</div></div></div>
     </div><div class="steps">${steps}</div></div>`;
 }
-function seasonalCard(title,sub,points){
-  return `<div class="info"><h4>${title}</h4><p style="color:var(--ink-faint);margin-bottom:8px">${sub}</p>
+function seasonalCard(title,sub,points,now){
+  return `<div class="info${now?' now':''}"><h4>${title}</h4><p style="color:var(--ink-faint);margin-bottom:8px">${sub}</p>
     <ul style="margin:0;padding-left:17px;font-size:13.5px;color:var(--ink-soft);line-height:1.65">
     ${points.map(p=>`<li style="margin-bottom:5px">${p}</li>`).join('')}</ul></div>`;
 }
@@ -1277,6 +1345,18 @@ function renderProducts(){
   catalogue().forEach(p=>{
     const opened=S.opened[p.id];
     const inRoutines=(p.routines||[]).length ? `<span class="prole" style="color:#1C6A45"> · in ${(p.routines||[]).length} routine${p.routines.length>1?'s':''}</span>`:'';
+    const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    let cadence='';
+    if(p.custom){
+      const bits=[];
+      if(p.freq==='asneeded') bits.push('<span class="cad asneeded">as needed</span>');
+      else if(p.freq==='days') bits.push(`<span class="cad">${(p.days||[]).map(d=>DOW[d]).join(' · ')||'no days set'}</span>`);
+      if(p.season&&p.season!=='all'){
+        const on=seasonOf()===p.season;
+        bits.push(`<span class="cad season ${on?'on':'off'}">${seasonLabel(p.season)}${on?'':' · out of season'}</span>`);
+      }
+      if(bits.length) cadence=`<div class="cad-row">${bits.join('')}</div>`;
+    }
     let usage='';
     if(opened){
       const start=new Date(opened+'T00:00');
@@ -1319,6 +1399,7 @@ function renderProducts(){
         </button>
       </div>
       ${p.note?`<p style="font-size:12.5px;color:var(--ink-soft);margin-top:11px;line-height:1.5">${p.note}</p>`:''}
+      ${cadence}
       ${skipRow}
       ${usage}
     </div>`;
@@ -1393,6 +1474,24 @@ function openAddProduct(){
         <div><label class="fl">Step label</label><input class="fi" id="ap_step" placeholder="Treat"></div>
         <div><label class="fl">Where / amount</label><input class="fi" id="ap_area" placeholder="whole face"></div>
       </div>
+      <label class="fl">How often <span style="color:var(--ink-faint);font-weight:400">(when it's in a routine)</span></label>
+      <select class="fi" id="ap_freq">
+        <option value="always">Every time — part of the routine</option>
+        <option value="days">Certain days of the week</option>
+        <option value="asneeded">As needed — shelf only, not in checklist</option>
+      </select>
+      <div id="ap_days_wrap" style="display:none">
+        <label class="fl">Which days</label>
+        <div class="rt-checks" id="ap_days">
+          ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`<label class="rt-check"><input type="checkbox" value="${i}"><span>${d}</span></label>`).join('')}
+        </div>
+      </div>
+      <label class="fl">Season</label>
+      <select class="fi" id="ap_season">
+        <option value="all">All year</option>
+        <option value="cool">Cooler months only (Oct–Mar)</option>
+        <option value="warm">Warmer months only (Apr–Sep)</option>
+      </select>
       <label class="fl">Note</label>
       <input class="fi" id="ap_note" placeholder="Anything to remember">
     </div>`,
@@ -1400,25 +1499,33 @@ function openAddProduct(){
       {label:'Add product', cls:'primary', onClick:null, keep:true}
     ],
     onMount:(ov)=>{
+      const freq=ov.querySelector('#ap_freq'), daysWrap=ov.querySelector('#ap_days_wrap');
+      freq.addEventListener('change',()=>{ daysWrap.style.display = freq.value==='days' ? 'block':'none'; });
       ov.querySelector('.mbtn.primary').addEventListener('click',()=>{
         const name=ov.querySelector('#ap_name').value.trim();
         if(!name){ ov.querySelector('#ap_name').style.borderColor='var(--red)'; return; }
-        const routines=[...ov.querySelectorAll('.rt-checks input:checked')].map(c=>c.value);
+        const routines=[...ov.querySelectorAll('.rt-checks input:checked')]
+          .filter(c=>c.closest('#ap_days')===null).map(c=>c.value);
+        const days=[...ov.querySelectorAll('#ap_days input:checked')].map(c=>+c.value);
         const prod={
           id, custom:true, name,
           brand:ov.querySelector('#ap_brand').value.trim()||'',
-          role:ov.querySelector('#ap_role').value.trim()||'Product',
+          role:ov.querySelector('#ap_role').value.trim()||'',
           size:ov.querySelector('#ap_size').value.trim()||'',
           lifeDays:parseInt(ov.querySelector('#ap_life').value)||90,
           note:ov.querySelector('#ap_note').value.trim()||'',
           stepLabel:ov.querySelector('#ap_step').value.trim()||'',
           area:ov.querySelector('#ap_area').value.trim()||'',
           stars:4, color:THUMB_COLORS[customList().length % THUMB_COLORS.length],
-          routines
+          routines,
+          freq:freq.value,
+          days: freq.value==='days' ? (days.length?days:[1,4]) : [],
+          season:ov.querySelector('#ap_season').value
         };
         S.customProducts=[...customList(), prod];
         save(); rebuildP(); closeModal(); renderProducts(); renderTopbar();
-        toast(routines.length?'Added to shelf & routines':'Added to shelf');
+        toast(prod.freq==='asneeded' ? 'Added to shelf (as needed)'
+             : routines.length ? 'Added to shelf & routines' : 'Added to shelf');
       });
     }
   });
@@ -1453,7 +1560,7 @@ function renderProgress(){
     const loggedTags=[...sel];
     S.journal.unshift({date:todayISO(), t:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), text:txt, tags:loggedTags, wk:weekOfPlan()});
     save(); renderProgress();
-    if(!maybeSuggestAdjustment(loggedTags)) toast('Logged');
+    if(!maybeSuggestAdjustment(loggedTags, txt)) toast('Logged');
   });
   v.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{
     progView=b.dataset.view; renderProgress();
@@ -1484,7 +1591,7 @@ function monthStats(y,m){
   let done=0, tracked=0, a313=0, skips=0, elapsed=0;
   const last=new Date(y,m+1,0).getDate();
   for(let d=1; d<=last; d++){
-    const iso=new Date(Date.UTC(y,m,d)).toISOString().slice(0,10);
+    const iso=y+'-'+pad2(m+1)+'-'+pad2(d);
     if(iso>todayISO()) continue;
     if(iso<S.start) continue;
     elapsed++;
@@ -1514,13 +1621,13 @@ function agendaHTML(){
     const badge = nt==='a313'?'<span class="hbadge a313">A313</span>'
                 : nt==='rest'?'<span class="hbadge rest">rest</span>'
                 : '<span class="hbadge off">off</span>';
-    const am=amSteps().length, pm=pmSteps(iso).length;
+    const am=amSteps(iso).length, pm=pmSteps(iso).length;
     const full=dayComplete(iso);
     const l=dayLog(iso);
     const skips=[];
     ['am','pm'].forEach(part=>Object.keys(l.skip[part]||{}).forEach(idx=>{
       const e=skipEntry(part,+idx,iso);
-      const nm=e.n || ((part==='am'?amSteps():pmSteps(iso))[+idx]||{}).name || 'step';
+      const nm=e.n || ((part==='am'?amSteps(iso):pmSteps(iso))[+idx]||{}).name || 'step';
       skips.push(`<div class="ag-skip">⊘ <b>${nm}</b> — ${e.r}</div>`);
     }));
     return `<button class="ag-row ${full?'full':''}" data-day="${iso}">
@@ -1545,7 +1652,7 @@ function calendarHTML(){
   let cells='';
   for(let i=0;i<lead;i++) cells+='<div class="cday empty"></div>';
   for(let d=1; d<=last; d++){
-    const iso=new Date(Date.UTC(y,m,d)).toISOString().slice(0,10);
+    const iso=y+'-'+pad2(m+1)+'-'+pad2(d);
     const state=dayState(iso);
     const isToday = iso===todayISO();
     const started = iso>=S.start;
@@ -1623,7 +1730,7 @@ function openProductSkips(pid){
 }
 
 function openDaySheet(iso){
-  const am=amSteps(), pm=pmSteps(iso);
+  const am=amSteps(iso), pm=pmSteps(iso);
   const nt=nightType(iso);
   const label = nt==='a313'?'A313 night' : nt==='rest'?'barrier rest' : 'off night';
   const started = iso>=S.start;
