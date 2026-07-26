@@ -403,6 +403,16 @@ nav.tabs{
 .adj-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;margin:8px 0 14px;border:1px solid}
 .adj-banner.rest{background:var(--blue-tint);border-color:#CFE0EC}
 .adj-banner.ease{background:var(--amber-tint);border-color:#EFD8B8}
+.adj-banner.ramp{background:var(--green-tint);border-color:#BFE0CE}
+.ramp-grid{display:flex;flex-direction:column;gap:9px;margin:4px 0 2px}
+.ramp-row{display:flex;gap:11px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line-soft);border-radius:12px;background:var(--card)}
+.ramp-row.now{border-color:var(--green);background:var(--green-tint)}
+.ramp-row.done{opacity:.55}
+.ramp-n{font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;color:var(--ink-faint);width:44px;flex:none;padding-top:2px}
+.ramp-b{flex:1;min-width:0}
+.ramp-b .rt{font-size:13px;letter-spacing:-.01em;margin-bottom:2px}
+.ramp-b .rd{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--ink-soft);line-height:1.55}
+.ramp-b .ro{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--red);margin-top:2px}
 .adj-ic{width:32px;height:32px;border-radius:9px;background:#fff;display:grid;place-items:center;flex:none}
 .adj-ic svg{width:17px;height:17px}
 .adj-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -572,6 +582,38 @@ const PHASES_MEGHAN = [
   {wk:[9,12],  name:'Consolidate', freq:7, nights:[0,1,2,3,4,5,6], desc:'nightly if tolerated', micro:'Nightly only if skin is comfortable. No prize for rushing.'},
   {wk:[13,999],name:'Maintenance', freq:4, nights:[0,2,4,6],       desc:'4 nights / week',    micro:'Long-term sustainable rhythm. This is the finish line that lasts.'},
 ];
+/* ---------- reintroduction ramp: rebuild the barrier, then one product a week ---------- */
+const RAMP_MEGHAN = {
+  id:'reintro', name:'Reintroduction', days:28,
+  why:'Six products on day one — including two acids — is what stripped the barrier. This rebuilds it first, then adds one product back a week, gentlest first, S\u00e9bium last.',
+  stages:[
+    {n:1, name:'Barrier reset', from:1, to:5, pmKey:'rest',
+     am:['toleriane','xeracalm','anthelios'],
+     inLabel:'barrier only', outLabel:'Vitamin C \u00b7 Cleanance \u00b7 S\u00e9bium \u00b7 A313',
+     micro:'No actives at all for five days. Cleanser, balm, SPF \u2014 that is the entire plan, and it is doing the most important work of the month.',
+     notes:{toleriane:'Lukewarm water alone is fine on any morning washing stings.',
+            xeracalm:'Twice a day, generously. This week it is the treatment, not the finishing step.'}},
+    {n:2, name:'Vitamin C back', from:6, to:12, pmKey:'rest',
+     am:['toleriane','vinoperfect','xeracalm','anthelios'], everyOther:['vinoperfect'],
+     inLabel:'+ Vinoperfect \u00b7 alternate AM', outLabel:'Cleanance \u00b7 S\u00e9bium \u00b7 A313',
+     micro:'Vinoperfect on alternate mornings only \u2014 the app drops it in on the right days. Evenings stay barrier-rest.',
+     notes:{vinoperfect:'Alternate mornings. If it stings going on, stop it and give the barrier another week before trying again.'}},
+    {n:3, name:'Cleanance back', from:13, to:19, pmKey:'recovery',
+     am:['toleriane','vinoperfect','cleanance','xeracalm','anthelios'],
+     pm:['toleriane','cleanance','xeracalm'],
+     inLabel:'+ Cleanance \u00b7 spots only', outLabel:'S\u00e9bium \u00b7 A313',
+     micro:'Cleanance returns, but as a spot treatment on chin and jaw \u2014 never a layer across the face. S\u00e9bium stays out; it is the prime suspect.',
+     notes:{cleanance:'Dot on individual spots. If the whole area feels tight by day three, go back to every other night.'}},
+    {n:4, name:'A313 restart', from:20, to:28, pmKey:'recovery',
+     am:['toleriane','vinoperfect','cleanance','xeracalm','anthelios'],
+     pm:['toleriane','cleanance','xeracalm'],
+     a313Days:[21,26],
+     inLabel:'+ A313 \u00b7 2 buffered nights', outLabel:'S\u00e9bium',
+     micro:'Two A313 nights, five days apart, both buffered and short-contact. Nothing else changes.',
+     a313Note:'Short contact tonight: XeraCalm \u2192 pea of A313 \u2192 XeraCalm, then wash it off after 30 minutes. Sandwich it every single time this stage.'},
+  ],
+  after:'S\u00e9bium comes back after the ramp \u2014 twice a week at most, T-zone only. The A313 schedule picks up at 2 nights a week from your first buffered night.'
+};
 const SEASONAL_MEGHAN = [
   ['Travel','Simplify to survive transit & hard water.',[
     'Cleanser, XeraCalm, SPF are the non-negotiable carry-ons.',
@@ -597,7 +639,7 @@ const TROUBLE_MEGHAN=[
   {sx:'var(--red)',t:'Burning or stinging',fix:['If it happens during application, your skin wasn\'t fully dry — wait 20 min next time.','Rinse off tonight if it\'s intense, moisturize, skip actives.','Use a smaller-than-pea amount when you resume.']},
   {sx:'var(--red)',t:'Redness or irritation',fix:['Pause all actives 2–3 nights: cleanse + XeraCalm only (the <b>barrier rest</b> evening).','Cool compress; avoid hot water and physical scrubs.','Reintroduce A313 at a lower frequency once calm.']},
   {sx:'var(--green)',t:'Acne seems worse',fix:['In weeks 2–6, in your usual chin/jaw zones, this is likely <b>purging</b> — retinoids surfacing what was coming anyway. Stay the course.','Don\'t add new products to "fix" it — that\'s how barriers break.','If it\'s new areas, cystic, or past week 8, note it and consider seeing a dermatologist.']},
-  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: Cleanser, XeraCalm, SPF only.','Reintroduce one active every few days, starting with Vitamin C.','Sensitivity is a barrier signal — rebuild before resuming A313.']},
+  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: Cleanser, XeraCalm, SPF only.','Reintroduce one active at a time, starting with Vitamin C \u2014 <b>Setup \u2192 Reintroduction ramp</b> runs the whole four weeks for you.','Sensitivity is a barrier signal \u2014 rebuild before resuming A313.','Raw or stinging when you wash is the clearest signal of all. That is a barrier problem, not a reason to add another product.']},
 ];
 const SCIENCE_MEGHAN=[
   {t:'Vitamin A / Retinoids (A313)',d:'A313 is retinyl esters — a gentle vitamin A. Skin converts it toward retinoic acid, which speeds cell turnover, boosts collagen, and normalizes how pores shed cells. That\'s why it treats acne, texture, and fine lines at once. "Retinization" is the 4–12 week adjustment period as skin adapts.'},
@@ -671,13 +713,44 @@ const PHASES_MOM = [
   {wk:[5,8],   name:'Establish',   freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'This is your target frequency — no need to go higher.'},
   {wk:[9,999], name:'Maintenance', freq:4, nights:[0,2,4,6],   desc:'4 nights / week',  micro:'Holding steady. Four nights keeps results without over-taxing sensitive skin.'},
 ];
+const RAMP_MOM = {
+  id:'reintro', name:'Reintroduction', days:28,
+  why:'When redness-prone skin reacts, the fix is the same order every time: barrier first, then one product back a week, retinoid last.',
+  stages:[
+    {n:1, name:'Barrier reset', from:1, to:5, pmKey:'rest',
+     am:['m_cleanser','dermabsolu','anthelios'],
+     inLabel:'barrier only', outLabel:'Vinoperfect \u00b7 Rosaliac \u00b7 A313',
+     micro:'No actives for five days. Cleanser, DermAbsolu, SPF \u2014 that is the whole plan.',
+     notes:{m_cleanser:'Lukewarm water alone is fine on any morning washing stings.',
+            dermabsolu:'Twice a day, generously. This week it is the treatment.'}},
+    {n:2, name:'Rosaliac back', from:6, to:12, pmKey:'rest',
+     am:['m_cleanser','rosaliac','dermabsolu','anthelios'],
+     inLabel:'+ Rosaliac AR', outLabel:'Vinoperfect \u00b7 A313',
+     micro:'Rosaliac is a calming product rather than an active, so it comes back first \u2014 morning only for now.',
+     notes:{rosaliac:'Cheeks and nose. It should feel like nothing; if it stings, wait another week.'}},
+    {n:3, name:'Serum back', from:13, to:19, pmKey:'recovery',
+     am:['m_cleanser','vinoperfect','rosaliac','optimeyes','dermabsolu','anthelios'], everyOther:['vinoperfect'],
+     pm:['m_cleanser','rosaliac','optimeyes','dermabsolu'],
+     inLabel:'+ Vinoperfect \u00b7 alternate AM', outLabel:'A313',
+     micro:'Vinoperfect on alternate mornings only \u2014 not yet in the evening.',
+     notes:{vinoperfect:'Alternate mornings this stage. Evening use comes back after the ramp.'}},
+    {n:4, name:'A313 restart', from:20, to:28, pmKey:'recovery',
+     am:['m_cleanser','vinoperfect','rosaliac','optimeyes','dermabsolu','anthelios'],
+     pm:['m_cleanser','rosaliac','optimeyes','dermabsolu'],
+     a313Days:[21,26],
+     inLabel:'+ A313 \u00b7 2 buffered nights', outLabel:'evening Vinoperfect',
+     micro:'Two A313 nights, five days apart, both buffered. Keep it well away from the eye area.',
+     a313Note:'Short contact tonight: DermAbsolu \u2192 pea of A313 \u2192 DermAbsolu, then wash it off after 30 minutes.'},
+  ],
+  after:'Evening Vinoperfect comes back after the ramp. The A313 schedule picks up at Mon & Thu from your first buffered night.'
+};
 const TROUBLE_MOM=[
   {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>DermAbsolu</b> morning, night, and a little midday over tight areas.','Drop A313 by one frequency step for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
   {sx:'var(--amber)',t:'Peeling or flaking',fix:['Do not pick or scrub — you\'ll damage new skin.','Buffer A313 with moisturizer underneath, and skip Vinoperfect for a few days.','Hydrate generously. Peeling means slow down, not push through.']},
   {sx:'var(--red)',t:'Burning or stinging',fix:['If it stings on application, the skin wasn\'t fully dry — wait the full 20 minutes next time.','Rinse off tonight if it\'s intense, moisturize, and skip actives.','Use less than a pea when you resume.']},
   {sx:'var(--red)',t:'Redness or flushing increases',fix:['Pause all actives for 2–3 nights: cleanse + DermAbsolu only (the <b>barrier rest</b> evening).','Keep using <b>Rosaliac AR</b> — it\'s the calming one, not an active.','Avoid hot water, saunas, and spicy food while it settles; reintroduce A313 at a lower frequency.']},
   {sx:'var(--blue)',t:'Eye area feels irritated',fix:['Keep A313 well away from the eyelid and orbital bone — it migrates as it warms.','Use Optim-Eyes as the buffer, applied before A313 on retinoid nights.','If irritation persists, skip A313 near the eyes entirely.']},
-  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: cleanser, DermAbsolu, SPF only.','Reintroduce one product every few days, starting with Rosaliac.','Sensitivity is a barrier signal — rebuild before resuming A313.']},
+  {sx:'var(--blue)',t:'Skin feels sensitive / reactive',fix:['Strip back for a week: cleanser, DermAbsolu, SPF only.','Reintroduce one product at a time, starting with Rosaliac \u2014 <b>Setup \u2192 Reintroduction ramp</b> runs the whole four weeks for you.','Sensitivity is a barrier signal \u2014 rebuild before resuming A313.']},
 ];
 const SCIENCE_MOM=[
   {t:'Vitamin A / Retinoids (A313)',d:'A313 is retinyl esters — a gentle form of vitamin A. Skin converts it toward retinoic acid, which speeds cell turnover and stimulates collagen. That\'s why it softens fine lines, evens tone, and refines texture. The 4–12 week adjustment period is called retinization.'},
@@ -711,9 +784,11 @@ const SEASONAL_MOM = [
 const PROFILES = {
   meghan:{ key:'leRegime.v1',     name:'Meghan', products:PRODUCTS_MEGHAN, routines:ROUTINES_MEGHAN,
            phases:PHASES_MEGHAN, trouble:TROUBLE_MEGHAN, science:SCIENCE_MEGHAN, seasonal:SEASONAL_MEGHAN,
+           ramp:RAMP_MEGHAN,
            intro:"Your morning routine is the same every day. Evenings rotate based on where you are in the A313 plan — the Today tab always picks tonight's for you. Here are all of them for reference." },
   mom:{    key:'leRegime.v1.mom', name:'Mom',    products:PRODUCTS_MOM,    routines:ROUTINES_MOM,
            phases:PHASES_MOM,    trouble:TROUBLE_MOM,    science:SCIENCE_MOM,    seasonal:SEASONAL_MOM,
+           ramp:RAMP_MOM,
            intro:"Your morning routine is the same every day. Evenings alternate between regular nights and A313 nights — the Today tab always picks tonight's for you. Here are all of them for reference." },
 };
 const PROFILE_KEY='leRegime.profile';
@@ -767,6 +842,7 @@ function normalize(s){
   s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[];
   s.overrides = s.overrides||{}; s.adjustments = s.adjustments||[];
   s.customProducts = s.customProducts||[]; s.hidden = s.hidden||[];
+  s.ramp = s.ramp || null;                      // reintroduction ramp, when one is running
   return s;
 }
 function loadState(){
@@ -828,6 +904,8 @@ function weekOfPlan(dateStr=todayISO()){
 function planStarted(dateStr=todayISO()){ return dateStr >= S.start; }
 function nightType(dateStr=todayISO()){
   if(S.overrides[dateStr]) return S.overrides[dateStr];        // manual single-night override wins
+  const rn = rampNight(dateStr);
+  if(rn) return rn;                                            // the ramp owns its 28 days
   if(!planStarted(dateStr)) return 'recovery';                 // no retinoid before the plan begins
   const adj = activeAdjustment(dateStr);
   if(adj && adj.kind==='rest') return 'rest';                  // barrier rest = every night is a rest night
@@ -841,6 +919,36 @@ function nightType(dateStr=todayISO()){
   }
   return nights.includes(dow) ? 'a313' : 'recovery';
 }
+/* ---------- reintroduction ramp engine ----------
+   A dated, staged rebuild that temporarily replaces the routines: it decides
+   which products appear each day and which evening runs, then hands control
+   back to the phase engine on the last day. */
+function rampDef(){ return ME.ramp || null; }
+function rampOn(){ return !!(S.ramp && S.ramp.start && rampDef()); }
+function rampDay(dateStr=todayISO()){
+  if(!rampOn()) return 0;
+  return Math.floor((new Date(dateStr+'T00:00') - new Date(S.ramp.start+'T00:00'))/86400000) + 1;
+}
+function rampDateOf(day){
+  const d=new Date(S.ramp.start+'T00:00'); d.setDate(d.getDate()+(day-1)); return isoOf(d);
+}
+function rampStage(dateStr=todayISO()){
+  if(!rampOn()) return null;
+  const R=rampDef(), d=rampDay(dateStr);
+  if(d<1 || d>R.days) return null;
+  return R.stages.find(st=>d>=st.from && d<=st.to) || null;
+}
+function rampNight(dateStr=todayISO()){
+  const st=rampStage(dateStr); if(!st) return null;
+  return (st.a313Days||[]).includes(rampDay(dateStr)) ? 'a313' : st.pmKey;
+}
+function rampAllow(key, dateStr){
+  const st=rampStage(dateStr); if(!st) return null;
+  if(key==='morning') return st.am||null;
+  if(key==='a313')    return null;                 // the A313 night runs in full
+  return st.pm||null;                              // rest night is already minimal
+}
+
 function eveningRoutineKey(dateStr=todayISO()){
   const t = nightType(dateStr);
   return t==='a313' ? 'a313' : (t==='rest' ? 'rest' : 'recovery');
@@ -856,6 +964,7 @@ function untilSunday(){ const dow=new Date().getDay(); const add=(7-dow)%7; retu
 
 /* ---------- reactive adjustments (symptom → plan change) ---------- */
 function activeAdjustment(dateStr=todayISO()){
+  if(rampStage(dateStr)) return null;                          // the ramp supersedes rest/ease
   const hits = S.adjustments.filter(a=>dateStr>=a.from && dateStr<=a.until);
   return hits.length ? hits[hits.length-1] : null;             // most recent wins
 }
@@ -865,6 +974,84 @@ function applyAdjustment(kind, until, reason){
   save();
   switchTab('today');
   toast(kind==='rest' ? 'Barrier rest set' : 'A313 eased');
+}
+/* ---------- starting & ending a ramp ---------- */
+function rampScheduleHtml(previewStart){
+  const R=rampDef(); if(!R) return '';
+  const base = previewStart || (S.ramp && S.ramp.start) || todayISO();
+  const dayOf = n => { const d=new Date(base+'T00:00'); d.setDate(d.getDate()+(n-1)); return isoOf(d); };
+  const today = todayISO();
+  const rows = R.stages.map(st=>{
+    const on = today>=dayOf(st.from) && today<=dayOf(st.to) && rampOn();
+    const done = rampOn() && today>dayOf(st.to);
+    const nights = (st.a313Days||[]).map(d=>fmtShort(dayOf(d))).join(' \u00b7 ');
+    return `<div class="ramp-row ${on?'now':''} ${done?'done':''}">
+      <div class="ramp-n">${fmtShort(dayOf(st.from)).replace(/^\w+ /,'')}<br>\u2192 ${fmtShort(dayOf(st.to)).replace(/^\w+ /,'')}</div>
+      <div class="ramp-b">
+        <div class="rt">${st.n}. ${st.name}</div>
+        <div class="rd">${st.inLabel}${nights?' \u00b7 '+nights:''}</div>
+        <div class="ro">out: ${st.outLabel}</div>
+      </div></div>`;
+  }).join('');
+  return `<div class="ramp-grid">${rows}</div>`;
+}
+/* keep today's ticks when the step list changes shape under them */
+function remapDayLog(dateStr, oldAm, oldPm){
+  const l=S.logs[dateStr]; if(!l) return;
+  if(!l.skip) l.skip={am:{},pm:{}};
+  const keyOf = st => st.p+'|'+(st.name||'');
+  [['am',oldAm],['pm',oldPm]].forEach(([part,oldList])=>{
+    const newList = part==='am' ? amSteps(dateStr) : pmSteps(dateStr);
+    const doneKeys = (l[part]||[]).map(i=>oldList[i]).filter(Boolean).map(keyOf);
+    const skips={};
+    Object.entries((l.skip&&l.skip[part])||{}).forEach(([i,v])=>{ const st=oldList[+i]; if(st) skips[keyOf(st)]=v; });
+    l[part]=[]; l.skip[part]={};
+    newList.forEach((st,idx)=>{
+      const k=keyOf(st);
+      if(doneKeys.includes(k)) l[part].push(idx);
+      else if(skips[k]) l.skip[part][idx]=skips[k];
+    });
+  });
+}
+function startRamp(){
+  const R=rampDef(); if(!R) return;
+  const iso=todayISO();
+  const oldAm=amSteps(iso), oldPm=pmSteps(iso);
+  S.ramp={id:R.id, start:iso, created:Date.now()};
+  S.adjustments=S.adjustments.filter(a=>a.until<iso);       // rest/ease are moot now
+  delete S.overrides[iso];
+  S.start=rampDateOf(R.days+1);                            // the 12-week plan restarts the day the ramp ends
+  remapDayLog(iso, oldAm, oldPm);
+  S.journal.unshift({date:iso, t:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    text:'Started the '+R.days+'-day reintroduction ramp \u2014 skin felt raw when washing. Barrier first, then one product a week.', tags:[], wk:1});
+  save(); renderTopbar(); switchTab('today'); toast('Reintroduction ramp started');
+}
+function endRamp(){
+  showModal({
+    title:'End the ramp?',
+    body:`Your routines go back to normal immediately. A313 stays paused until its start date (${fmtShort(S.start)}) \u2014 change that in Setup if you want it sooner.`,
+    actions:[
+      {label:'End the ramp', cls:'primary', onClick:()=>{ S.ramp=null; save(); renderTopbar(); switchTab('today'); toast('Back to your normal plan'); }},
+      {label:'Keep going', cls:'ghost'}
+    ]
+  });
+}
+function openRampSheet(){
+  const R=rampDef(); if(!R) return;
+  if(rampOn()){
+    const st=rampStage(); const d=rampDay();
+    showModal({
+      title:R.name+' \u00b7 day '+d+' of '+R.days, icon:RAMP_IC, iconBg:'var(--green-tint)',
+      body:`<p>${st?st.micro:'The ramp has finished \u2014 you can end it to go back to the normal plan.'}</p>${rampScheduleHtml()}<p style="margin-top:10px">${R.after}</p>`,
+      actions:[{label:'End the ramp', cls:'warn', onClick:endRamp}, {label:'Close', cls:'ghost'}]
+    });
+  } else {
+    showModal({
+      title:'Start the '+R.days+'-day reintroduction?', icon:RAMP_IC, iconBg:'var(--green-tint)',
+      body:`<p>${R.why}</p>${rampScheduleHtml(todayISO())}<p style="margin-top:10px">Each day the Today tab shows only the products that belong in that stage, so there is nothing to remember. Skips, streak and journal all keep working. ${R.after}</p>`,
+      actions:[{label:'Start today', cls:'primary', onClick:startRamp}, {label:'Not now', cls:'ghost'}]
+    });
+  }
 }
 function endAdjustment(){
   const t=todayISO();
@@ -965,8 +1152,21 @@ function productActive(cp, dateStr=todayISO()){
   }
   return true;
 }
-function effectiveSteps(key, dateStr=todayISO()){
-  const base = ROUTINES[key].steps.filter(s=>!isHidden(s.p) && P[s.p]);
+function effectiveSteps(key, dateStr=todayISO(), opts={}){
+  let base = ROUTINES[key].steps.filter(s=>!isHidden(s.p) && P[s.p]);
+  const st = opts.raw ? null : rampStage(dateStr);
+  if(st){
+    const allow = rampAllow(key, dateStr);
+    if(allow) base = base.filter(s=>allow.includes(s.p));
+    const offset = rampDay(dateStr) - st.from;
+    base = base
+      .filter(s=>!(st.everyOther||[]).includes(s.p) || offset%2===0)
+      .map(s=>{
+        const isPommade = key==='a313' && s.p==='a313' && /pommade/i.test(s.name||'');
+        const add = [(st.notes||{})[s.p], isPommade?st.a313Note:null].filter(Boolean);
+        return add.length ? {...s, note:[s.note, ...add].filter(Boolean).join(' ')} : s;
+      });
+  }
   const extra = customList()
     .filter(cp=>(cp.routines||[]).includes(key) && productActive(cp, dateStr))
     .map(cp=>({p:cp.id, name:cp.stepLabel||cp.role||cp.name, amount:cp.amount||'', area:cp.area||'', custom:true}));
@@ -1000,7 +1200,10 @@ function toast(msg){
 
 function renderTopbar(){
   document.getElementById('whoTag').textContent = ME.name;
-  document.getElementById('phaseChip').textContent = 'week '+weekOfPlan()+' · '+phaseForWeek(weekOfPlan()).name.toLowerCase();
+  const rst0=rampStage();
+  document.getElementById('phaseChip').textContent = rst0
+    ? ('ramp \u00b7 day '+rampDay()+' / '+rampDef().days)
+    : ('week '+weekOfPlan()+' \u00b7 '+phaseForWeek(weekOfPlan()).name.toLowerCase());
   const bc = document.getElementById('brandCross');
   bc.innerHTML = dayComplete() ? CROSS_FILL : CROSS;
 }
@@ -1037,7 +1240,15 @@ function renderToday(){
   const adj = activeAdjustment(iso);
   const started = planStarted(iso);
   const freqLabel = !started ? 'starts '+fmtShort(S.start)
-                  : adj ? (adj.kind==='rest' ? 'paused · barrier rest' : 'eased one step') : ph.desc;
+                  : adj ? (adj.kind==='rest' ? 'paused \u00b7 barrier rest' : 'eased one step') : ph.desc;
+  const rst = rampStage(iso);
+  const R = rampDef();
+  const phaseLine = rst ? ('ramp \u00b7 stage '+rst.n+' of '+R.stages.length)
+                        : (started?('wk '+w+' \u00b7 '+ph.name):'not started yet');
+  const freqLine  = rst ? rst.inLabel : freqLabel;
+  const microLine = rst ? rst.micro : ph.micro;
+  const trackData = rst ? {label:rst.name.toLowerCase(), right:'day '+rampDay(iso)+' / '+R.days,
+                           pct:Math.round(rampDay(iso)/R.days*100), fill:'var(--green)'} : track;
 
   let banner='';
   const stranded=futureLogs();
@@ -1047,6 +1258,15 @@ function renderToday(){
       <div class="adj-tx"><b>${stranded.length} entr${stranded.length>1?'ies':'y'} on the wrong day</b>
         <span>saved as ${fmtShort(stranded[0])}${stranded.length>1?' +'+(stranded.length-1):''} · timezone bug, now fixed</span></div>
       <button class="adj-end" id="fixDates">Move back</button>
+    </div>`;
+  }
+  if(rst){
+    const nx = R.stages.find(x=>x.from>rampDay(iso));
+    banner = `<div class="adj-banner ramp">
+      <div class="adj-ic">${RAMP_IC}</div>
+      <div class="adj-tx"><b>${rst.name} \u00b7 stage ${rst.n} of ${R.stages.length}</b>
+        <span>day ${rampDay(iso)} of ${R.days} \u00b7 ${nx?('next: '+nx.name.toLowerCase()+' '+fmtShort(rampDateOf(nx.from))):('ends '+fmtShort(rampDateOf(R.days)))}</span></div>
+      <button class="adj-end" id="rampInfo">Plan</button>
     </div>`;
   }
   if(adj){
@@ -1069,18 +1289,18 @@ function renderToday(){
       <span class="night-badge ${badgeCls}"><span class="dot"></span>${badgeLabel}</span>
     </div>
     <div class="script-body">
-      <div class="rx-line"><span class="k">Retinization phase</span><span class="v">${started?('wk '+w+' · '+ph.name):'not started yet'}</span></div>
-      <div class="rx-line"><span class="k">A313 frequency</span><span class="v warm">${freqLabel}</span></div>
+      <div class="rx-line"><span class="k">${rst?'Reintroduction':'Retinization phase'}</span><span class="v">${phaseLine}</span></div>
+      <div class="rx-line"><span class="k">${rst?'In the routine':'A313 frequency'}</span><span class="v warm">${freqLine}</span></div>
       <div class="rx-line"><span class="k">This evening</span><span class="v">${pmSteps().length} steps</span></div>
       <div class="phase-track">
-        <div class="bar"><div class="fill" style="width:${track.pct}%;background:${track.fill}"></div></div>
-        <div class="cap"><span>${track.label}</span><span>${track.right}</span></div>
+        <div class="bar"><div class="fill" style="width:${trackData.pct}%;background:${trackData.fill}"></div></div>
+        <div class="cap"><span>${trackData.label}</span><span>${trackData.right}</span></div>
       </div>
     </div>
   </div>`;
 
   html += routineCard('morning','am',iso);
-  html += routineCard(eveningRoutineKey(iso),'pm',iso, ph.micro);
+  html += routineCard(eveningRoutineKey(iso),'pm',iso, microLine);
 
   // streak strip
   const st=streak();
@@ -1099,6 +1319,8 @@ function renderToday(){
   if(fixBtn) fixBtn.addEventListener('click',repairFutureLogs);
   const endBtn=v.querySelector('#adjEnd');
   if(endBtn) endBtn.addEventListener('click',endAdjustment);
+  const rampBtn=v.querySelector('#rampInfo');
+  if(rampBtn) rampBtn.addEventListener('click',openRampSheet);
   bindRoutineCards(v, iso);
 }
 
@@ -1247,6 +1469,7 @@ function closeModal(){ const m=document.getElementById('modalOv'); if(m){ m.clas
 
 const REST_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#2E5677" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.1-7 8.5-4.1-1.4-7-4.3-7-8.5V6l7-3Z"/></svg>';
 const EASE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#8A5316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 12l6 6 6-6"/></svg>';
+const RAMP_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#1C6A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h4v-4h5v-4h5V8h4"/></svg>';
 const PURGE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="#1C6A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v0M12 8v8M9 12l3 3 3-3"/><circle cx="12" cy="12" r="9"/></svg>';
 
 /* ---- decide whether a logged symptom warrants an offer ---- */
@@ -1301,6 +1524,11 @@ function suggestPurge(){
 function renderRoutines(){
   const v=document.getElementById('v-routines');
   let html='<div class="section-label">the four evenings</div>';
+  const rst=rampStage();
+  if(rst){
+    html+=`<div class="info now"><h4>${rampDef().name} in progress \u00b7 stage ${rst.n}</h4>
+      <p style="color:var(--ink-soft)">These are the full routines. Until ${fmtShort(rampDateOf(rampDef().days))} the Today tab shows a reduced version of them \u2014 ${rst.inLabel}, with ${rst.outLabel.toLowerCase()} held back.</p></div>`;
+  }
   html+=`<div class="info"><p>${ME.intro}</p></div>`;
   ['morning','a313','recovery','rest'].forEach(k=>{
     html+=staticRoutine(k);
@@ -1317,7 +1545,7 @@ function staticRoutine(key){
   const r=ROUTINES[key];
   const icon=r.icon==='sun'?SUN:MOON;
   let steps='';
-  effectiveSteps(key).forEach((s,i)=>{
+  effectiveSteps(key, todayISO(), {raw:true}).forEach((s,i)=>{
     const prod=P[s.p]; if(!prod) return;
     steps+=`<div class="step"><div class="check" style="border-radius:50%;width:22px;height:22px;border-color:var(--line-soft)"><span class="mono" style="font-size:10px;color:var(--ink-faint)">${i+1}</span></div>
       <div class="step-body"><div class="name">${s.name}</div>
@@ -1831,6 +2059,8 @@ function renderMore(){
       </select></div>
     <div class="set-row"><div><div class="sl">A313 start date</div><div class="sd">Drives your week & phase</div></div>
       <input type="date" id="startDate" value="${S.start}"></div>
+    <div class="set-row"><div><div class="sl">Reintroduction ramp</div><div class="sd">${rampOn()? (rampStage()? ('day '+rampDay()+' of '+rampDef().days+' \u00b7 '+rampStage().name) : 'finished \u00b7 tap to close it out') : '4 weeks, one product at a time'}</div></div>
+      <button class="adj-end" id="rampBtn">${rampOn()?'View plan':'Start'}</button></div>
     <div class="set-row"><div><div class="sl">Tonight\'s evening</div><div class="sd">Override the auto choice</div></div>
       <select id="ovr" style="font-family:'Spline Sans Mono';font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card);color:var(--ink)">
         <option value="">auto (${nightType()})</option>
@@ -1880,6 +2110,7 @@ function renderMore(){
     });
   });
   v.querySelector('#startDate').addEventListener('change',e=>{ S.start=e.target.value; save(); renderTopbar(); toast('Start date updated'); });
+  v.querySelector('#rampBtn').addEventListener('click',openRampSheet);
   v.querySelector('#ovr').value=S.overrides[todayISO()]||'';
   v.querySelector('#ovr').addEventListener('change',e=>{
     if(e.target.value) S.overrides[todayISO()]=e.target.value; else delete S.overrides[todayISO()];

@@ -39,6 +39,25 @@ A skip is deliberately *not* a symptom: it never triggers an A313 schedule chang
 
 A313 nights fall on **fixed weekdays** defined per phase (Mom starts Mon & Thu; Meghan starts Tue & Sat). The **start date** sets which *week* of the plan you're in — it does not move which weekdays are retinoid nights. Before the start date, no A313 night is ever scheduled: the app shows "not started yet" and gives the plain evening routine.
 
+## Reintroduction ramp
+
+When skin is raw, stinging or reactive, **More → Setup → Reintroduction ramp** starts a dated 28-day rebuild that temporarily takes over the routines:
+
+| Stage | Days | In the routine | Held back |
+|---|---|---|---|
+| 1. Barrier reset | 1–5 | cleanser, moisturizer, SPF | every active |
+| 2. Vitamin C back | 6–12 | + Vinoperfect, alternate mornings | Cleanance, Sébium, A313 |
+| 3. Cleanance back | 13–19 | + Cleanance, spots only | Sébium, A313 |
+| 4. A313 restart | 20–28 | + two buffered short-contact A313 nights (days 21 and 26) | Sébium |
+
+While it runs, the Today tab shows only the steps that belong to that stage, so there is nothing to remember. Skips, streak, journal and backups all keep working, and the **Routines** tab still shows the full routines for reference.
+
+Starting the ramp also moves the **A313 start date** to the day after it ends, so the 12-week plan restarts cleanly at two nights a week instead of resuming mid-phase. Ticks already logged today are carried over by product, not by position, so nothing is lost when the step list shrinks. Barrier-rest and ease-off adjustments are ignored while a ramp is active — the ramp supersedes them.
+
+To stop early: **End** from the banner or **View plan → End the ramp**. Routines go back to normal immediately; A313 stays paused until its start date, which you can bring forward in Setup.
+
+Mom's profile has its own version of the ramp (barrier → Rosaliac → Vinoperfect → A313).
+
 ## Deploy to GitHub Pages
 
 1. Create a repo (e.g. `le-regime`) and add every file in this folder to the root.
