@@ -184,6 +184,14 @@ main{padding:4px 16px 24px}
 .hzn.skipped{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--line)}
 .hzn.none{color:var(--ink-faint)}
 .hzr{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--ink-faint);text-align:right}
+.ds-hint{font-size:11.5px;color:var(--ink-faint);margin:0 0 10px}
+.ds-row{align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ds-row:active{opacity:.55}
+.ds-row .hzr{margin-left:auto}
+.ds-skip{flex:none;width:26px;height:26px;margin-left:8px;padding:5px;border:0;border-radius:8px;background:var(--line-soft);color:var(--ink-faint);display:grid;place-items:center}
+.ds-skip svg{width:100%;height:100%}
+.ds-foot{margin-top:12px;font-family:'Spline Sans Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--ink-faint);text-align:center}
+.ver-foot{margin-top:14px;text-align:center;font-family:'Spline Sans Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--ink-faint)}
 
 /* calendar */
 .cal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 13px 12px;box-shadow:var(--shadow-sm);margin-bottom:11px}
@@ -838,8 +846,16 @@ const isoOf = d => d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()
 const todayISO = ()=> isoOf(new Date());
 function normalize(s){
   if(!s || typeof s!=='object') s = {};
-  s.start = s.start || todayISO();
+  s.start = s.start || todayISO();          // A313 anchor — drives week & phase
   s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[];
+  /* When tracking actually began. Separate from s.start: the A313 anchor moves
+     (ramp, manual change) and must never erase logged history behind it. */
+  if(!s.trackStart){
+    const has = d => { const l=s.logs[d]||{}; return (l.am&&l.am.length)||(l.pm&&l.pm.length)||
+      (l.skip&&(Object.keys(l.skip.am||{}).length||Object.keys(l.skip.pm||{}).length)); };
+    const logged = Object.keys(s.logs).filter(has).sort();
+    s.trackStart = logged.length ? (logged[0]<s.start?logged[0]:s.start) : s.start;
+  }
   s.overrides = s.overrides||{}; s.adjustments = s.adjustments||[];
   s.customProducts = s.customProducts||[]; s.hidden = s.hidden||[];
   s.ramp = s.ramp || null;                      // reintroduction ramp, when one is running
@@ -901,7 +917,9 @@ function weekOfPlan(dateStr=todayISO()){
   const days = Math.floor((d - start)/86400000);
   return Math.max(1, Math.floor(days/7)+1);
 }
-function planStarted(dateStr=todayISO()){ return dateStr >= S.start; }
+function planStarted(dateStr=todayISO()){ return dateStr >= S.start; }   // A313 has begun
+function trackStart(){ return S.trackStart || S.start; }
+function tracking(dateStr=todayISO()){ return dateStr >= trackStart(); }  // history exists
 function nightType(dateStr=todayISO()){
   if(S.overrides[dateStr]) return S.overrides[dateStr];        // manual single-night override wins
   const rn = rampNight(dateStr);
@@ -1020,7 +1038,7 @@ function startRamp(){
   S.ramp={id:R.id, start:iso, created:Date.now()};
   S.adjustments=S.adjustments.filter(a=>a.until<iso);       // rest/ease are moot now
   delete S.overrides[iso];
-  S.start=rampDateOf(R.days+1);                            // the 12-week plan restarts the day the ramp ends
+  S.start=rampDateOf(R.days+1);                            // A313 restarts the day after the ramp ends (history untouched)
   remapDayLog(iso, oldAm, oldPm);
   S.journal.unshift({date:iso, t:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
     text:'Started the '+R.days+'-day reintroduction ramp \u2014 skin felt raw when washing. Barrier first, then one product a week.', tags:[], wk:1});
@@ -1413,19 +1431,20 @@ function bindRoutineCards(scope, iso){
 }
 
 const SKIP_REASONS=['Traveling','Too tired','Event / wearing makeup','Out of product','Skin felt sensitive','Deliberate rest','Other'];
-function openSkipSheet(part, idx, iso){
+function openSkipSheet(part, idx, iso, onDone){
   const stepList = part==='am'?amSteps(iso):pmSteps(iso);
   const s=stepList[idx]; const label=s?s.name:'this step';
   showModal({
     title:'Skip “'+label+'”?', icon:SKIP_IC, iconBg:'var(--line-soft)',
     body:`Recorded as an <b>intentional skip</b>, with your reason, so your history stays accurate. It won't break your streak and won't trigger any change to your A313 schedule.`,
     actions:SKIP_REASONS.map(r=>({label:r, cls:r==='Other'?'ghost':'', onClick:()=>{
-      if(r==='Other'){ promptSkipReason(part,idx,iso); return; }
-      setSkip(part,idx,r,iso); renderToday(); renderTopbar(); toast('Skip logged');
+      if(r==='Other'){ promptSkipReason(part,idx,iso,onDone); return; }
+      setSkip(part,idx,r,iso); renderTopbar(); toast('Skip logged');
+      if(onDone) onDone(); else renderToday();
     }}))
   });
 }
-function promptSkipReason(part, idx, iso){
+function promptSkipReason(part, idx, iso, onDone){
   showModal({
     title:'Why skipped?', icon:SKIP_IC, iconBg:'var(--line-soft)',
     body:`<div class="form"><input class="fi" id="skip_r" placeholder="e.g. sunburn, dermatologist said to pause" maxlength="60"></div>`,
@@ -1434,7 +1453,8 @@ function promptSkipReason(part, idx, iso){
       const inp=ov.querySelector('#skip_r'); setTimeout(()=>inp.focus(),120);
       ov.querySelector('.mbtn.primary').addEventListener('click',()=>{
         const r=inp.value.trim()||'Other';
-        setSkip(part,idx,r,iso); closeModal(); renderToday(); renderTopbar(); toast('Skip logged');
+        setSkip(part,idx,r,iso); closeModal(); renderTopbar(); toast('Skip logged');
+        if(onDone) onDone(); else renderToday();
       });
     }
   });
@@ -1821,7 +1841,7 @@ function monthStats(y,m){
   for(let d=1; d<=last; d++){
     const iso=y+'-'+pad2(m+1)+'-'+pad2(d);
     if(iso>todayISO()) continue;
-    if(iso<S.start) continue;
+    if(!tracking(iso)) continue;
     elapsed++;
     if(dayHas(iso)) tracked++;
     if(dayComplete(iso)) done++;
@@ -1957,16 +1977,63 @@ function openProductSkips(pid){
   });
 }
 
-function openDaySheet(iso){
+function dayEditable(iso){ return tracking(iso) && iso<=todayISO(); }
+function daySheetBody(iso){
   const am=amSteps(iso), pm=pmSteps(iso);
   const nt=nightType(iso);
   const label = nt==='a313'?'A313 night' : nt==='rest'?'barrier rest' : 'off night';
-  const started = iso>=S.start;
-  const body = !started
-    ? `<div style="color:var(--ink-faint);font-size:13px">Before your plan started on ${fmtShort(S.start)}.</div>`
-    : `<div class="hsec">Morning</div>${am.map((s,i)=>stepStateLine('am',i,s.name,iso)).join('')}
-       <div class="hsec" style="margin-top:12px">Evening · ${label}</div>${pm.map((s,i)=>stepStateLine('pm',i,s.name,iso)).join('')}`;
-  showModal({ title:fmtDate(iso), body, actions:[{label:'Close', cls:'primary'}] });
+  if(!tracking(iso))
+    return `<div style="color:var(--ink-faint);font-size:13px">Before you started tracking on ${fmtShort(trackStart())}.</div>`;
+  if(iso>todayISO())
+    return `<div style="color:var(--ink-faint);font-size:13px">Still to come — evening is set for <b>${label}</b>.</div>`;
+  const done=handledCount('am',iso)+handledCount('pm',iso), total=am.length+pm.length;
+  return `<div class="ds-hint">Tap a step to log it. Use ⊘ to record a skip.</div>
+    <div class="hsec">Morning</div>${am.map((s,i)=>dayStepLine('am',i,s.name,iso)).join('')}
+    <div class="hsec" style="margin-top:12px">Evening · ${label}</div>${pm.map((s,i)=>dayStepLine('pm',i,s.name,iso)).join('')}
+    <div class="ds-foot">${done}/${total} logged${dayComplete(iso)?' · day complete':''}</div>`;
+}
+function dayStepLine(part, idx, name, iso){
+  const done=isStepDone(part,idx,iso), sk=isStepSkipped(part,idx,iso);
+  return `<div class="hz ds-row" data-ds="${part}:${idx}">
+    <span class="hzi ${done?'done':(sk?'skip':'none')}">${done?'✓':(sk?'⊘':'·')}</span>
+    <span class="hzn ${sk?'skipped':(done?'':'none')}">${name}</span>
+    <span class="hzr">${sk?skipReason(part,idx,iso):(done?'':'not logged')}</span>
+    <button class="ds-skip" data-dss="${part}:${idx}" title="Skip this step">${SKIP_IC}</button>
+  </div>`;
+}
+/* Backfill: any day from trackStart up to today can be ticked here, so one
+   forgotten evening does not have to stay a hole in the record. */
+function openDaySheet(iso){
+  showModal({
+    title:fmtDate(iso), body:daySheetBody(iso),
+    actions:[{label:'Done', cls:'primary'}],
+    onMount:(ov)=>{
+      if(!dayEditable(iso)) return;
+      const body=ov.querySelector('.modal-b');
+      const refresh=()=>{
+        renderTopbar();
+        if(currentTab==='progress') renderProgress();
+        else if(currentTab==='today') renderToday();
+      };
+      const redraw=()=>{ body.innerHTML=daySheetBody(iso); bind(); refresh(); };
+      const bind=()=>{
+        body.querySelectorAll('.ds-skip').forEach(b=>b.addEventListener('click',ev=>{
+          ev.stopPropagation();
+          const [part,i]=b.dataset.dss.split(':'); const idx=+i;
+          if(isStepSkipped(part,idx,iso)){ setSkip(part,idx,null,iso); redraw(); toast('Skip removed'); return; }
+          openSkipSheet(part,idx,iso,()=>openDaySheet(iso));
+        }));
+        body.querySelectorAll('.ds-row').forEach(r=>r.addEventListener('click',()=>{
+          const [part,i]=r.dataset.ds.split(':');
+          const wasComplete=dayComplete(iso);
+          toggleStep(part,+i,iso);
+          redraw();
+          if(!wasComplete && dayComplete(iso)){ toast('Day complete — backfilled.'); celebrate(); }
+        }));
+      };
+      bind();
+    }
+  });
 }
 
 function historyHTML(){
@@ -1994,7 +2061,7 @@ function historyHTML(){
     <p style="font-size:11.5px;color:var(--ink-faint);margin:8px 4px 0;line-height:1.5">Tap a product to see every skip and why. Skips never change your A313 schedule.</p>`;
 }
 
-function stepStateLine(part, idx, name, iso){
+function stepStateLine(part, idx, name, iso){   // read-only variant (kept for other views)
   if(isStepDone(part,idx,iso))
     return `<div class="hz"><span class="hzi done">✓</span><span class="hzn">${name}</span></div>`;
   if(isStepSkipped(part,idx,iso))
@@ -2057,7 +2124,9 @@ function renderMore(){
       <select id="whoSel" style="font-family:'Spline Sans Mono';font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card);color:var(--ink)">
         ${Object.entries(PROFILES).map(([id,p])=>`<option value="${id}" ${id===PROFILE?'selected':''}>${p.name}</option>`).join('')}
       </select></div>
-    <div class="set-row"><div><div class="sl">A313 start date</div><div class="sd">Drives your week & phase</div></div>
+    <div class="set-row"><div><div class="sl">Tracking since</div><div class="sd">Where your history and % begin</div></div>
+      <input type="date" id="trackDate" value="${trackStart()}"></div>
+    <div class="set-row"><div><div class="sl">A313 start date</div><div class="sd">Drives your week &amp; phase only</div></div>
       <input type="date" id="startDate" value="${S.start}"></div>
     <div class="set-row"><div><div class="sl">Reintroduction ramp</div><div class="sd">${rampOn()? (rampStage()? ('day '+rampDay()+' of '+rampDef().days+' \u00b7 '+rampStage().name) : 'finished \u00b7 tap to close it out') : '4 weeks, one product at a time'}</div></div>
       <button class="adj-end" id="rampBtn">${rampOn()?'View plan':'Start'}</button></div>
@@ -2094,6 +2163,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
+  html+=`<div class="ver-foot">v5 \u00b7 backfill</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
@@ -2109,7 +2179,8 @@ function renderMore(){
       ]
     });
   });
-  v.querySelector('#startDate').addEventListener('change',e=>{ S.start=e.target.value; save(); renderTopbar(); toast('Start date updated'); });
+  v.querySelector('#trackDate').addEventListener('change',e=>{ S.trackStart=e.target.value; save(); renderTopbar(); toast('Tracking start updated'); });
+  v.querySelector('#startDate').addEventListener('change',e=>{ S.start=e.target.value; save(); renderTopbar(); toast('A313 start updated'); });
   v.querySelector('#rampBtn').addEventListener('click',openRampSheet);
   v.querySelector('#ovr').value=S.overrides[todayISO()]||'';
   v.querySelector('#ovr').addEventListener('change',e=>{
