@@ -318,6 +318,42 @@ main{padding:4px 16px 24px}
   padding:6px 11px;border-radius:8px;background:var(--blue-tint);color:#2E5677;white-space:nowrap;
 }
 .btn-sm.opened{background:var(--line-soft);color:var(--ink-soft)}
+.skin-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:13px}
+.skin-card.done{cursor:pointer}
+.sk-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sk-x{margin-left:auto;color:var(--ink-faint);font-size:17px;line-height:1;padding:2px 4px}
+.sk-edit{margin-left:auto;font-size:11px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase}
+.sk-carry{font-size:10px;background:var(--line-soft);color:var(--ink-faint);padding:2px 7px;border-radius:999px}
+.sk-ask{font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:11px}
+.sk-btns{display:flex;gap:8px;flex-wrap:wrap}
+.sk-go{background:var(--ink);color:#fff}
+.sk-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sk-chip{display:flex;align-items:center;gap:5px;background:var(--line-soft);border-radius:999px;padding:5px 10px;font-size:11.5px}
+.sk-k{color:var(--ink-faint)}
+.sk-row{margin-bottom:13px}
+.sk-rl{font-size:12.5px;color:var(--ink);margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
+.sk-rl span{font-size:10.5px;color:var(--ink-faint);letter-spacing:.03em}
+.sk-scale{display:flex;gap:6px}
+.sk-n{flex:1;padding:10px 0;border-radius:10px;background:var(--line-soft);color:var(--ink-soft);font-size:14px;font-family:inherit}
+.sk-n.on{background:var(--c);color:#fff}
+.sk-legend{display:flex;gap:13px;flex-wrap:wrap;margin-top:4px}
+.sk-lg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-soft)}
+.sk-lg i{width:9px;height:2.5px;border-radius:2px;display:inline-block}
+.sk-foot{font-size:11px;color:var(--ink-faint);line-height:1.5;margin-top:9px}
+.sub-note{margin-top:10px;font-size:11.5px;line-height:1.5;padding:8px 10px;border-radius:9px}
+.sub-note.in{background:var(--green-tint);color:#1C6A45}
+.sub-note.out{background:var(--line-soft);color:var(--ink-faint)}
+.swl{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 5px}
+.swf{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);-webkit-appearance:none}
+.swchips{display:flex;flex-wrap:wrap;gap:6px}
+.swchip{padding:7px 10px;border-radius:999px;background:var(--line-soft);color:var(--ink-soft);font-size:12px;border:1px solid transparent}
+.swchip.on{background:var(--ink);color:#fff}
+.chg{padding:11px 0;border-bottom:1px solid var(--line-soft)}
+.chg-d{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
+.chg-live{background:var(--green-tint);color:#1C6A45;padding:2px 6px;border-radius:999px;letter-spacing:0;text-transform:none}
+.chg-p{font-size:13px;color:var(--ink);line-height:1.45}
+.chg-w{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.chg-a{display:flex;gap:7px;margin-top:8px}
 
 /* progress / log */
 .log-input{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-sm);margin-bottom:16px}
@@ -553,6 +589,83 @@ function customList(){ return S.customProducts || []; }
 function isHidden(id){ return (S.hidden||[]).includes(id); }
 function catalogue(){ return PRODUCTS.filter(p=>!isHidden(p.id)).concat(customList()); }
 function rebuildP(){ P = Object.fromEntries(PRODUCTS.concat(customList()).map(p=>[p.id,p])); }
+
+/* ---------- daily skin observations ----------
+   Deliberately outside dayComplete(): ratings never touch the streak, the % or the calendar.
+   Carried-forward days are flagged (c:1) so a run of "same as yesterday" taps can be told
+   apart from a run of genuinely observed stable days. */
+const SKIN_M=[
+  {k:'o',  label:'Oiliness',   lo:'none', hi:'very oily', col:'#DD9445'},
+  {k:'d',  label:'Dryness',    lo:'none', hi:'very dry',  col:'#6E9BC0'},
+  {k:'i',  label:'Irritation', lo:'calm', hi:'burning',   col:'#C6604F'},
+  {k:'b',  label:'Breakouts',  lo:'clear',hi:'a lot',     col:'#8A5316'},
+  {k:'ov', label:'Overall',    lo:'poor', hi:'great',     col:'#1C6A45', good:true},
+];
+function skinAt(date){ return (S.skin||{})[date]||null; }
+function lastSkin(before){
+  const keys=Object.keys(S.skin||{}).filter(d=>d<before).sort();
+  return keys.length ? {date:keys[keys.length-1], e:S.skin[keys[keys.length-1]]} : null;
+}
+function setSkin(date, vals, carried){
+  S.skin[date]={...vals, c:carried?1:0};
+  delete S.skinX[date];
+  save();
+}
+function skinCount(){
+  const all=Object.values(S.skin||{});
+  return {n:all.length, carried:all.filter(e=>e.c).length};
+}
+function skinSeries(days){
+  const out=[]; const d=new Date(); d.setDate(d.getDate()-(days-1));
+  for(let i=0;i<days;i++){ const iso=isoOf(d); out.push({iso, e:skinAt(iso)}); d.setDate(d.getDate()+1); }
+  return out;
+}
+function rollAvg(series,k,win){
+  win=win||7;
+  return series.map((pt,i)=>{
+    let sum=0,n=0;
+    for(let j=Math.max(0,i-win+1);j<=i;j++){ const e=series[j].e; if(e&&typeof e[k]==='number'){ sum+=e[k]; n++; } }
+    return n?sum/n:null;
+  });
+}
+
+/* ---------- product substitution: a step keeps its identity, the product behind it can change ----------
+   S.subs[baseProductId] = [{p:replacementId, from:'YYYY-MM-DD', to:null|'YYYY-MM-DD', why, note}]
+   Resolution is per-date, so history always shows what was actually on the shelf that day. */
+const SUB_REASONS=['Skin sensitivity','Breakouts / clogging','Dryness','Irritation','Too heavy','Finished it','Unavailable','Trying something new','Seasonal change','Other'];
+function subList(id){ return (S.subs&&S.subs[id])||[]; }
+function subAt(id,date){
+  let cur=null;
+  subList(id).forEach(e=>{ if(e.from<=date && (!e.to || date<=e.to)) cur=e; });
+  return cur;
+}
+function resolveProduct(id,date){
+  let cur=id, seen={};
+  for(let i=0;i<5;i++){
+    if(seen[cur]) break; seen[cur]=1;
+    const e=subAt(cur,date);
+    if(!e||!e.p||e.p===cur) break;
+    cur=e.p;
+  }
+  return P[cur]?cur:id;
+}
+/* what is this product currently standing in for, and what replaced it */
+function subInfo(pid, date){
+  const d=date||todayISO(), out={standsFor:null, replacedBy:null, since:null, until:null, why:null};
+  const e=subAt(pid,d);
+  if(e && e.p && e.p!==pid){ out.replacedBy=e.p; out.since=e.from; out.until=e.to||null; out.why=e.why||null; }
+  Object.keys(S.subs||{}).forEach(base=>{
+    const a=subAt(base,d);
+    if(a && a.p===pid && base!==pid){ out.standsFor=base; out.since=a.from; out.until=a.to||null; out.why=a.why||null; }
+  });
+  return out;
+}
+function allSubs(){                                   // newest first, for the change log
+  const out=[];
+  Object.keys(S.subs||{}).forEach(base=>subList(base).forEach((e,i)=>out.push({base, i, ...e})));
+  return out.sort((a,b)=>b.from.localeCompare(a.from));
+}
+function pName(id){ return (P[id]&&P[id].name)||id; }
 
 /* ---------- routines ---------- */
 function step(prod, opts={}){return {p:prod, ...opts};}
@@ -847,7 +960,7 @@ const todayISO = ()=> isoOf(new Date());
 function normalize(s){
   if(!s || typeof s!=='object') s = {};
   s.start = s.start || todayISO();          // A313 anchor — drives week & phase
-  s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[];
+  s.logs = s.logs||{}; s.opened = s.opened||{}; s.journal = s.journal||[]; s.subs = s.subs||{}; s.skin = s.skin||{}; s.skinX = s.skinX||{};
   /* When tracking actually began. Separate from s.start: the A313 anchor moves
      (ramp, manual change) and must never erase logged history behind it. */
   if(!s.trackStart){
@@ -1170,7 +1283,7 @@ function usageFor(p, opened, USES){
   const recent=dates.filter(d=>d>=cutoff).length;
   const rate = recent>0 ? recent/win : perDay;      // no recent data → assume the plan
   const left=budget-used;
-  return {budget, used, left, rate, days:Math.round(left/rate), pct:Math.max(0,Math.min(100,Math.round(used/budget*100)))};
+  return {budget, used, left, rate, base, days:Math.round(left/rate), pct:Math.max(0,Math.min(100,Math.round(used/budget*100)))};
 }
 function currentRun(list){                                        // consecutive days ending at the newest skip
   if(!list.length) return 0;
@@ -1211,17 +1324,20 @@ function productActive(cp, dateStr=todayISO()){
   return true;
 }
 function effectiveSteps(key, dateStr=todayISO(), opts={}){
-  let base = ROUTINES[key].steps.filter(s=>!isHidden(s.p) && P[s.p]);
+  let base = ROUTINES[key].steps
+    .map(s=>{ const rid=resolveProduct(s.p,dateStr); return rid===s.p ? s : {...s, p:rid, base:s.p}; })
+    .filter(s=>!isHidden(s.p) && P[s.p]);
   const st = opts.raw ? null : rampStage(dateStr);
   if(st){
     const allow = rampAllow(key, dateStr);
-    if(allow) base = base.filter(s=>allow.includes(s.p));
+    if(allow) base = base.filter(s=>allow.includes(s.base||s.p));
     const offset = rampDay(dateStr) - st.from;
     base = base
-      .filter(s=>!(st.everyOther||[]).includes(s.p) || offset%2===0)
+      .filter(s=>!(st.everyOther||[]).includes(s.base||s.p) || offset%2===0)
       .map(s=>{
-        const isPommade = key==='a313' && s.p==='a313' && /pommade/i.test(s.name||'');
-        const add = [(st.notes||{})[s.p], isPommade?st.a313Note:null].filter(Boolean);
+        const bp = s.base||s.p;
+        const isPommade = key==='a313' && bp==='a313' && /pommade/i.test(s.name||'');
+        const add = [(st.notes||{})[bp], isPommade?st.a313Note:null].filter(Boolean);
         return add.length ? {...s, note:[s.note, ...add].filter(Boolean).join(' ')} : s;
       });
   }
@@ -1360,6 +1476,8 @@ function renderToday(){
   html += routineCard('morning','am',iso);
   html += routineCard(eveningRoutineKey(iso),'pm',iso, microLine);
 
+  html += skinCard(iso);
+
   // streak strip
   const st=streak();
   const dots = weekDots();
@@ -1379,7 +1497,102 @@ function renderToday(){
   if(endBtn) endBtn.addEventListener('click',endAdjustment);
   const rampBtn=v.querySelector('#rampInfo');
   if(rampBtn) rampBtn.addEventListener('click',openRampSheet);
+  bindSkin(v, iso);
   bindRoutineCards(v, iso);
+}
+
+function skinCard(iso){
+  const e=skinAt(iso);
+  if(e){
+    const chips=SKIN_M.map(m=>`<span class="sk-chip"><span class="sk-k">${m.label}</span><b style="color:${m.col}">${e[m.k]}</b></span>`).join('');
+    return `<div class="skin-card done" data-skinedit="${iso}">
+      <div class="sk-head"><span class="eyebrow">skin today</span>${e.c?'<span class="sk-carry">carried forward</span>':''}<span class="sk-edit">edit</span></div>
+      <div class="sk-chips">${chips}</div></div>`;
+  }
+  if((S.skinX||{})[iso]) return '';
+  if(handledCount('pm',iso) < pmSteps(iso).length) return '';       // only once the evening is done
+  const prev=lastSkin(iso);
+  return `<div class="skin-card">
+    <div class="sk-head"><span class="eyebrow">skin today</span><span class="sk-x" data-skinx="${iso}">×</span></div>
+    <p class="sk-ask">How does it look and feel tonight? Optional — it never counts toward your streak.</p>
+    <div class="sk-btns">
+      <button class="btn-sm sk-go" data-skinrate="${iso}">Rate</button>
+      ${prev?`<button class="btn-sm" data-skinsame="${iso}">Same as ${fmtShort(prev.date).split(' ').slice(0,2).join(' ')}</button>`:''}
+    </div></div>`;
+}
+function bindSkin(v, iso){
+  const x=v.querySelector('[data-skinx]');
+  if(x) x.addEventListener('click',()=>{ S.skinX[iso]=1; save(); renderToday(); });
+  const r=v.querySelector('[data-skinrate]');
+  if(r) r.addEventListener('click',()=>openSkinSheet(iso));
+  const ed=v.querySelector('[data-skinedit]');
+  if(ed) ed.addEventListener('click',()=>openSkinSheet(iso));
+  const sm=v.querySelector('[data-skinsame]');
+  if(sm) sm.addEventListener('click',()=>{
+    const prev=lastSkin(iso); if(!prev) return;
+    const vals={}; SKIN_M.forEach(m=>vals[m.k]=prev.e[m.k]);
+    setSkin(iso, vals, true); renderToday(); toast('Carried forward from '+fmtShort(prev.date));
+  });
+}
+function openSkinSheet(iso){
+  const cur=skinAt(iso), prev=cur?null:lastSkin(iso);
+  const st={};
+  SKIN_M.forEach(m=>st[m.k]= cur?cur[m.k] : (prev?prev.e[m.k]:3));
+  const rows=SKIN_M.map(m=>`<div class="sk-row">
+      <div class="sk-rl">${m.label}<span>${m.lo} → ${m.hi}</span></div>
+      <div class="sk-scale" data-m="${m.k}">${[1,2,3,4,5].map(n=>`<button type="button" class="sk-n ${st[m.k]===n?'on':''}" data-n="${n}" style="--c:${m.col}">${n}</button>`).join('')}</div>
+    </div>`).join('');
+  showModal({
+    title:'Skin · '+fmtShort(iso),
+    body:`<p style="font-size:12px;color:var(--ink-faint);line-height:1.5;margin-bottom:6px">1–5. Four symptoms, then how the day felt overall.</p>${rows}`,
+    onMount:ov=>{
+      ov.querySelectorAll('.sk-scale').forEach(sc=>sc.addEventListener('click',ev=>{
+        const b=ev.target.closest('.sk-n'); if(!b) return;
+        st[sc.dataset.m]=+b.dataset.n;
+        sc.querySelectorAll('.sk-n').forEach(x=>x.classList.remove('on'));
+        b.classList.add('on');
+      }));
+    },
+    actions:[
+      {label:'Save', cls:'primary', onClick:()=>{
+        const vals={}; SKIN_M.forEach(m=>vals[m.k]=st[m.k]);
+        setSkin(iso, vals, false); renderToday(); toast('Skin logged');
+      }},
+      ...(cur?[{label:'Clear this day', cls:'ghost', onClick:()=>{ delete S.skin[iso]; save(); renderToday(); toast('Cleared'); }}]:[]),
+      {label:'Cancel', cls:'ghost'}
+    ]
+  });
+}
+/* ---- trend chart: 7-day rolling average, with the app's own decisions marked ---- */
+function skinChartHTML(days){
+  days=days||42;
+  const c=skinCount();
+  if(c.n<5) return `<div class="info"><p style="font-size:12.5px;color:var(--ink-soft);line-height:1.55">${c.n?`${c.n} day${c.n>1?'s':''} rated. `:''}A trend line needs about five days before it says anything. Rate from the Today tab once your evening is ticked off.</p></div>`;
+  const series=skinSeries(days);
+  const W=320,H=118,L=20,R=6,T=8,B=18;
+  const x=i=>L+i*(W-L-R)/(days-1);
+  const y=v=>T+(5-v)/4*(H-T-B);
+  const show=SKIN_M.filter(m=>['i','b','ov'].includes(m.k));
+  let paths='';
+  show.forEach(m=>{
+    const vals=rollAvg(series,m.k,7);
+    let d='', open=false;
+    vals.forEach((v,i)=>{ if(v==null){ open=false; return; } d += (open?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; open=true; });
+    if(d) paths+=`<path d="${d}" fill="none" stroke="${m.col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  });
+  let marks='';
+  const inWin=iso=>series.findIndex(pt=>pt.iso===iso);
+  allSubs().forEach(e=>{ const i=inWin(e.from); if(i>=0) marks+=`<line x1="${x(i).toFixed(1)}" y1="${T}" x2="${x(i).toFixed(1)}" y2="${H-B}" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="2 3"/>`; });
+  (S.adjustments||[]).forEach(a=>{ const i=inWin(a.from||a.start); if(i>=0) marks+=`<line x1="${x(i).toFixed(1)}" y1="${T}" x2="${x(i).toFixed(1)}" y2="${H-B}" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="2 3"/>`; });
+  const grid=[1,3,5].map(v=>`<line x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}" stroke="var(--line-soft)" stroke-width="1"/><text x="2" y="${y(v)+3.5}" font-size="8" fill="var(--ink-faint)">${v}</text>`).join('');
+  const legend=show.map(m=>`<span class="sk-lg"><i style="background:${m.col}"></i>${m.label}</span>`).join('');
+  return `<div class="info">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">${grid}${marks}${paths}
+      <text x="${L}" y="${H-5}" font-size="8" fill="var(--ink-faint)">${fmtShort(series[0].iso).split(' ').slice(1).join(' ')}</text>
+      <text x="${W-R}" y="${H-5}" font-size="8" fill="var(--ink-faint)" text-anchor="end">today</text></svg>
+    <div class="sk-legend">${legend}</div>
+    <p class="sk-foot">7-day rolling average · ${c.n} day${c.n>1?'s':''} rated${c.carried?`, ${c.carried} carried forward`:''}. Dotted lines mark product swaps and plan changes — skin usually gets swapped <i>because</i> it is bad, so a rise afterwards is as likely to be the flare passing on its own.</p>
+  </div>`;
 }
 
 function weekDots(){
@@ -1633,6 +1846,7 @@ function renderProducts(){
   html+='<div class="section-label">shelf · tap “opened” to track usage</div>';
   catalogue().forEach(p=>{
     const opened=S.opened[p.id];
+    const sinfo=subInfo(p.id);
     const inRoutines=(p.routines||[]).length ? `<span class="prole" style="color:#1C6A45"> · in ${(p.routines||[]).length} routine${p.routines.length>1?'s':''}</span>`:'';
     const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     let cadence='';
@@ -1649,8 +1863,10 @@ function renderProducts(){
     let usage='';
     if(opened){
       const u=usageFor(p,opened,USES);
+      const idle = u.base===0 && !!sinfo.replacedBy;
       const col=u.left<=0?'var(--red)':(u.days<=14?'var(--amber)':'var(--green)');
-      const status = u.left<=0 ? `<b style="color:var(--red)">Likely empty</b> · replace now`
+      const status = idle ? `<b>Not in your routine</b> · ${u.used} used`
+                : u.left<=0 ? `<b style="color:var(--red)">Likely empty</b> · replace now`
                 : u.days<=14 ? `<b>~${u.days} days</b> left · reorder soon`
                 : u.days>365 ? `<b>~${Math.round(u.days/30)} months</b> of usage left`
                 : `<b>~${u.days} days</b> of usage left`;
@@ -1683,10 +1899,14 @@ function renderProducts(){
           <div class="prole">${p.brand||''}${p.brand?' · ':''}${p.role||''} · ${p.size||''}${inRoutines}</div>
           <div class="stars">${'★'.repeat(p.stars||0)}${'☆'.repeat(5-(p.stars||0))}</div>
         </div>
+        <button class="prod-remove" data-swap="${p.id}" title="Replace with another product" style="margin-right:2px">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+        </button>
         <button class="prod-remove" data-remove="${p.id}" title="Remove">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/></svg>
         </button>
       </div>
+      ${subBanner(sinfo)}
       ${p.note?`<p style="font-size:12.5px;color:var(--ink-soft);margin-top:11px;line-height:1.5">${p.note}</p>`:''}
       ${cadence}
       ${skipRow}
@@ -1710,11 +1930,98 @@ function renderProducts(){
     S.opened[b.dataset.open]=todayISO(); save(); renderProducts(); toast('Opened today \u00b7 tap the date to change it');
   }));
   v.querySelectorAll('[data-editopen]').forEach(b=>b.addEventListener('click',()=>editOpened(b.dataset.editopen)));
+  v.querySelectorAll('[data-swap]').forEach(b=>b.addEventListener('click',()=>openSwap(b.dataset.swap)));
   v.querySelectorAll('[data-pskip]').forEach(b=>b.addEventListener('click',()=>openProductSkips(b.dataset.pskip)));
   v.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeProduct(b.dataset.remove)));
   v.querySelectorAll('[data-restore]').forEach(b=>b.addEventListener('click',()=>{
     S.hidden=(S.hidden||[]).filter(id=>id!==b.dataset.restore); save(); rebuildP(); renderProducts(); renderTopbar(); toast('Restored');
   }));
+}
+
+function subBanner(si){
+  if(si.replacedBy) return `<div class="sub-note out">Replaced by <b>${pName(si.replacedBy)}</b> · ${fmtShort(si.since)}${si.until?` → back on ${fmtShort(si.until)}`:''}${si.why?` · ${si.why}`:''}</div>`;
+  if(si.standsFor)  return `<div class="sub-note in">Standing in for <b>${pName(si.standsFor)}</b> · since ${fmtShort(si.since)}${si.until?` · temporary, until ${fmtShort(si.until)}`:''}${si.why?` · ${si.why}`:''}</div>`;
+  return '';
+}
+function openSwap(baseId){
+  const base=P[baseId]; if(!base) return;
+  const cands=catalogue().filter(x=>x.id!==baseId);
+  const st={to:cands.length?cands[0].id:'__new', from:todayISO(), until:'', why:'', name:'', brand:'', role:'', life:90};
+  const opts=cands.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')+'<option value="__new">+ A product not on your shelf…</option>';
+  showModal({
+    title:'Replace '+base.name.split(' ').slice(0,3).join(' '),
+    body:`<p style="font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin-bottom:13px">The <b>${(ROUTINES.morning.steps.concat(ROUTINES.a313.steps,ROUTINES.recovery.steps,ROUTINES.rest.steps).find(x=>x.p===baseId)||{}).name||'routine'}</b> step stays exactly where it is — only the product behind it changes, and every day you have already logged keeps ${base.name.split(' ')[0]}.</p>
+      <label class="swl">Swap in</label>
+      <select id="swTo" class="swf">${opts}</select>
+      <div id="swNew" style="display:none">
+        <label class="swl">Name</label><input id="swName" class="swf" placeholder="Vanicream Daily Facial Moisturizer">
+        <label class="swl">Brand</label><input id="swBrand" class="swf" placeholder="Vanicream">
+        <label class="swl">Lasts about (days)</label><input id="swLife" class="swf" type="number" inputmode="numeric" value="90">
+      </div>
+      <label class="swl">Starting</label>
+      <input id="swFrom" class="swf" type="date" value="${todayISO()}">
+      <label class="swl">Temporary — switch back on (optional)</label>
+      <input id="swUntil" class="swf" type="date">
+      <label class="swl">Why</label>
+      <div id="swWhy" class="swchips">${SUB_REASONS.map(r=>`<button type="button" class="swchip" data-why="${r}">${r}</button>`).join('')}</div>`,
+    onMount:ov=>{
+      const sel=ov.querySelector('#swTo'), nw=ov.querySelector('#swNew');
+      const sync=()=>{ st.to=sel.value; nw.style.display = sel.value==='__new'?'block':'none'; };
+      sel.addEventListener('change',sync); sync();
+      ov.querySelector('#swFrom').addEventListener('input',e=>st.from=e.target.value);
+      ov.querySelector('#swUntil').addEventListener('input',e=>st.until=e.target.value);
+      ['swName','swBrand','swLife'].forEach(id=>ov.querySelector('#'+id).addEventListener('input',e=>{
+        st[id==='swName'?'name':id==='swBrand'?'brand':'life']=e.target.value;
+      }));
+      ov.querySelectorAll('.swchip').forEach(b=>b.addEventListener('click',()=>{
+        const on=b.classList.contains('on');
+        ov.querySelectorAll('.swchip').forEach(x=>x.classList.remove('on'));
+        if(!on){ b.classList.add('on'); st.why=b.dataset.why; } else st.why='';
+      }));
+    },
+    actions:[
+      {label:'Switch product', cls:'primary', onClick:()=>{
+        let pid=st.to;
+        if(pid==='__new'){
+          const nm=(st.name||'').trim(); if(!nm){ toast('Give the new product a name'); return; }
+          pid='sub_'+nm.toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,12)+'_'+Date.now().toString(36).slice(-4);
+          S.customProducts=[...customList(), {id:pid, name:nm, brand:(st.brand||'').trim(), role:base.role||'', color:base.color||'#6E9BC0',
+            stars:0, size:'', lifeDays:parseInt(st.life)||90, custom:true, routines:[], freq:'everytime', season:'all',
+            note:'Stand-in for '+base.name+'.'}];
+          rebuildP();
+        }
+        if(pid===baseId){ toast('That is the same product'); return; }
+        const e={p:pid, from:st.from||todayISO(), to:st.until||null, why:st.why||''};
+        S.subs[baseId]=[...subList(baseId), e].sort((a,b)=>a.from.localeCompare(b.from));
+        if(!S.opened[pid]) S.opened[pid]=e.from;
+        save(); rebuildP(); renderProducts(); renderToday && renderToday(); renderTopbar && renderTopbar();
+        toast(pName(pid).split(' ')[0]+' in from '+fmtShort(e.from));
+      }},
+      {label:'Cancel', cls:'ghost'}
+    ]
+  });
+}
+function endSub(baseId, i, mode){
+  const l=subList(baseId).slice(); const e=l[i]; if(!e) return;
+  if(mode==='delete'){ l.splice(i,1); }
+  else { const d=new Date(); d.setDate(d.getDate()-1); e.to=isoOf(d); l[i]=e; }
+  S.subs[baseId]=l; if(!l.length) delete S.subs[baseId];
+  save(); renderProducts(); renderMore && renderMore();
+  toast(mode==='delete'?'Change removed':pName(baseId).split(' ')[0]+' back from today');
+}
+function renderChangeLog(){
+  const list=allSubs();
+  if(!list.length) return '<p style="font-size:12.5px;color:var(--ink-faint);line-height:1.55">No product swaps yet. Use the ⇄ button on any product to change what sits behind a routine step — your history keeps the product you actually used.</p>';
+  return list.map(e=>{
+    const live = e.from<=todayISO() && (!e.to || todayISO()<=e.to);
+    return `<div class="chg">
+      <div class="chg-d">${fmtShort(e.from)}${e.to?` → ${fmtShort(e.to)}`:''}${live?' <span class="chg-live">live</span>':''}</div>
+      <div class="chg-p"><b>${pName(e.base)}</b> → <b>${pName(e.p)}</b></div>
+      ${e.why?`<div class="chg-w">${e.why}</div>`:''}
+      <div class="chg-a">${live?`<button class="btn-sm" data-endsub="${e.base}|${e.i}">Switch back today</button>`:''}
+        <button class="btn-sm" data-delsub="${e.base}|${e.i}">Delete</button></div>
+    </div>`;
+  }).join('');
 }
 
 function editOpened(id){
@@ -1855,6 +2162,8 @@ function renderProgress(){
     <button class="btn" id="jSave">Save entry</button>
   </div>`;
 
+  html+='<div class="section-label">skin trend</div>';
+  html+=skinChartHTML(42);
   html+=calendarHTML();
   html+=`<div class="section-label">what to expect</div><div class="tl">`+timelineHTML()+`</div>`;
   html+=historyHTML();
@@ -2182,6 +2491,8 @@ function renderMore(){
     '<b>Sun:</b> hat, shade, reapply. The cheapest anti-aging there is.',
   ]);
 
+  html+='<div class="section-label">what changed</div>';
+  html+=`<div class="info" style="padding-top:8px">${renderChangeLog()}</div>`;
   html+='<div class="section-label">setup</div>';
   html+=`<div class="info">
     <div class="set-row"><div><div class="sl">Whose routine</div><div class="sd">This device remembers your choice</div></div>
@@ -2227,7 +2538,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
-  html+=`<div class="ver-foot">v7 \u00b7 usage-based gauges</div>`;
+  html+=`<div class="ver-foot">v9 \u00b7 skin ratings</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
@@ -2296,6 +2607,14 @@ function renderMore(){
     saveGH();
   };
   v.querySelector('#ghSave').addEventListener('click',()=>{ ghApply(); renderMore(); toast('GitHub settings saved'); });
+  v.querySelectorAll('[data-endsub]').forEach(b=>b.addEventListener('click',()=>{
+    const [base,i]=b.dataset.endsub.split('|'); endSub(base,+i,'end');
+  }));
+  v.querySelectorAll('[data-delsub]').forEach(b=>b.addEventListener('click',()=>{
+    const [base,i]=b.dataset.delsub.split('|');
+    showModal({title:'Delete this change?', body:'The swap disappears from your history and every day reverts to the original product. Use <b>Switch back today</b> instead if you actually used it.',
+      actions:[{label:'Delete', cls:'primary', onClick:()=>endSub(base,+i,'delete')},{label:'Keep it', cls:'ghost'}]});
+  }));
   v.querySelector('#gh_auto').addEventListener('change',ghApply);
   v.querySelector('#ghNow').addEventListener('click',async()=>{ ghApply(); await doBackup(false); });
 
