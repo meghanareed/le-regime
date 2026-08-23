@@ -1132,6 +1132,46 @@ function skipsByProduct(){
   Object.values(map).forEach(a=>a.sort((x,y)=>y.date.localeCompare(x.date)));
   return map;
 }
+/* ---- usage engine: burn product life per logged application, not per calendar day ---- */
+function usesByProduct(){
+  const map={}, today=todayISO();
+  Object.keys(S.logs).forEach(date=>{
+    if(date>today) return;
+    const l=S.logs[date]; if(!l) return;
+    ['am','pm'].forEach(part=>{
+      const ticks=l[part]||[]; if(!ticks.length) return;
+      const list = part==='am' ? amSteps(date) : pmSteps(date);
+      ticks.forEach(i=>{
+        const st=list[+i]; if(!st||!st.p) return;
+        (map[st.p]=map[st.p]||[]).push(date);
+      });
+    });
+  });
+  return map;
+}
+/* expected applications per calendar day under the plain plan (no ramp, no rest, no ease) */
+function baselineRate(pid){
+  const t=todayISO();
+  const cnt=key=>{ try{ return effectiveSteps(key,t,{raw:true}).filter(s=>s.p===pid).length; }catch(e){ return 0; } };
+  let frac=3/7;
+  try{ const ph=phaseForWeek(weekOfPlan(t)); frac=Math.min(1,(ph.nights||[]).length/7); }catch(e){}
+  return cnt('morning') + cnt('a313')*frac + cnt('recovery')*(1-frac);
+}
+function usageFor(p, opened, USES){
+  const life=p.lifeDays||90;
+  const base=baselineRate(p.id);
+  const perDay = base>0 ? base : 1;                 // not in any routine → fall back to daily
+  const budget = Math.max(1, Math.round(life*perDay));
+  const dates=(USES[p.id]||[]).filter(d=>d>=opened);
+  const used=dates.length;
+  const cutoff=addDays(-28);
+  const openedDays=Math.floor((Date.now()-new Date(opened+'T00:00'))/86400000)+1;
+  const win=Math.max(1,Math.min(28,openedDays));
+  const recent=dates.filter(d=>d>=cutoff).length;
+  const rate = recent>0 ? recent/win : perDay;      // no recent data → assume the plan
+  const left=budget-used;
+  return {budget, used, left, rate, days:Math.round(left/rate), pct:Math.max(0,Math.min(100,Math.round(used/budget*100)))};
+}
 function currentRun(list){                                        // consecutive days ending at the newest skip
   if(!list.length) return 0;
   const days=[...new Set(list.map(x=>x.date))].sort().reverse();
@@ -1587,6 +1627,7 @@ function seasonalCard(title,sub,points,now){
 function renderProducts(){
   const v=document.getElementById('v-products');
   const SKIPMAP=skipsByProduct();
+  const USES=usesByProduct();
   let html=`<button class="btn ghost" id="addProdBtn" style="margin:6px 0 14px;display:flex;align-items:center;justify-content:center;gap:8px">
     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Add a product</button>`;
   html+='<div class="section-label">shelf · tap “opened” to track usage</div>';
@@ -1607,19 +1648,19 @@ function renderProducts(){
     }
     let usage='';
     if(opened){
-      const start=new Date(opened+'T00:00');
-      const used=Math.floor((Date.now()-start)/86400000);
-      const life=p.lifeDays||90;
-      const remain=life-used;
-      const pct=Math.max(0,Math.min(100,Math.round(used/life*100)));
-      let col=remain<0?'var(--red)':(remain<=14?'var(--amber)':'var(--green)');
-      let status = remain<0 ? `<b style="color:var(--red)">Likely empty</b> · replace now`
-                : remain<=14 ? `<b>~${remain} days</b> left · reorder soon`
-                : `<b>~${remain} days</b> of usage left`;
+      const u=usageFor(p,opened,USES);
+      const col=u.left<=0?'var(--red)':(u.days<=14?'var(--amber)':'var(--green)');
+      const status = u.left<=0 ? `<b style="color:var(--red)">Likely empty</b> · replace now`
+                : u.days<=14 ? `<b>~${u.days} days</b> left · reorder soon`
+                : u.days>365 ? `<b>~${Math.round(u.days/30)} months</b> of usage left`
+                : `<b>~${u.days} days</b> of usage left`;
+      const perWeek=(u.rate*7);
+      const cadenceTxt = perWeek>=6.5 ? 'daily' : `${perWeek>=1?perWeek.toFixed(1):perWeek.toFixed(2)}×/week`;
       usage=`<div class="prod-usage">
         <div class="usage-row"><div class="status">${status}</div>
-          <button class="btn-sm opened" data-reset="${p.id}">opened ${opened.slice(5)}</button></div>
-        <div class="gauge"><div class="g" style="width:${pct}%;background:${col}"></div></div>
+          <button class="btn-sm opened" data-editopen="${p.id}">opened ${opened.slice(5)}</button></div>
+        <div class="gauge"><div class="g" style="width:${u.pct}%;background:${col}"></div></div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.01em">${u.used} of ${u.budget} uses · ${cadenceTxt}</div>
       </div>`;
     } else {
       usage=`<div class="prod-usage"><div class="usage-row">
@@ -1666,16 +1707,39 @@ function renderProducts(){
 
   v.querySelector('#addProdBtn').addEventListener('click',openAddProduct);
   v.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>{
-    S.opened[b.dataset.open]=todayISO(); save(); renderProducts(); toast('Marked opened today');
+    S.opened[b.dataset.open]=todayISO(); save(); renderProducts(); toast('Opened today \u00b7 tap the date to change it');
   }));
-  v.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>{
-    if(confirm('Reset the opened date for this product?')){ delete S.opened[b.dataset.reset]; save(); renderProducts(); }
-  }));
+  v.querySelectorAll('[data-editopen]').forEach(b=>b.addEventListener('click',()=>editOpened(b.dataset.editopen)));
   v.querySelectorAll('[data-pskip]').forEach(b=>b.addEventListener('click',()=>openProductSkips(b.dataset.pskip)));
   v.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeProduct(b.dataset.remove)));
   v.querySelectorAll('[data-restore]').forEach(b=>b.addEventListener('click',()=>{
     S.hidden=(S.hidden||[]).filter(id=>id!==b.dataset.restore); save(); rebuildP(); renderProducts(); renderTopbar(); toast('Restored');
   }));
+}
+
+function editOpened(id){
+  const p=P[id]||{name:'this product'};
+  const cur=S.opened[id]||todayISO();
+  let val=cur;
+  showModal({
+    title:'Opened date',
+    body:`<p style="font-size:13px;color:var(--ink-soft);line-height:1.55;margin-bottom:12px">When did you start using <b>${p.name}</b>? The usage gauge counts forward from this date.</p>
+      <input type="date" id="opDate" value="${cur}" max="${todayISO()}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);-webkit-appearance:none">`,
+    onMount:ov=>{
+      const i=ov.querySelector('#opDate');
+      const grab=()=>{ val=i.value; };
+      i.addEventListener('input',grab); i.addEventListener('change',grab);
+    },
+    actions:[
+      {label:'Save', cls:'primary', onClick:()=>{
+        if(val){ S.opened[id]=val; save(); renderProducts(); toast('Opened '+fmtShort(val)); }
+      }},
+      {label:'Clear opened date', cls:'ghost', onClick:()=>{
+        delete S.opened[id]; save(); renderProducts(); toast('Opened date cleared');
+      }},
+      {label:'Cancel', cls:'ghost'}
+    ]
+  });
 }
 
 function removeProduct(id){
@@ -2163,7 +2227,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
-  html+=`<div class="ver-foot">v5 \u00b7 backfill</div>`;
+  html+=`<div class="ver-foot">v7 \u00b7 usage-based gauges</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
