@@ -1270,20 +1270,45 @@ function baselineRate(pid){
   try{ const ph=phaseForWeek(weekOfPlan(t)); frac=Math.min(1,(ph.nights||[]).length/7); }catch(e){}
   return cnt('morning') + cnt('a313')*frac + cnt('recovery')*(1-frac);
 }
+/* A day counts as tracked if it holds any tick or any skip. Empty shells and days that
+   pre-date your logging are untracked — the product was still being used on those days,
+   so they are credited at the plan's rate instead of silently counting as zero. */
+function trackedDays(){
+  if(_trackedCache && _trackedCache.t===JSON.stringify(Object.keys(S.logs)).length) return _trackedCache.set;
+  const set={};
+  Object.keys(S.logs||{}).forEach(d=>{
+    const l=S.logs[d]||{};
+    const sk=l.skip||{};
+    const n=(l.am||[]).length+(l.pm||[]).length+Object.keys(sk.am||{}).length+Object.keys(sk.pm||{}).length;
+    if(n>0) set[d]=1;
+  });
+  _trackedCache={t:JSON.stringify(Object.keys(S.logs)).length, set};
+  return set;
+}
+let _trackedCache=null;
 function usageFor(p, opened, USES){
   const life=p.lifeDays||90;
   const base=baselineRate(p.id);
   const perDay = base>0 ? base : 1;                 // not in any routine → fall back to daily
   const budget = Math.max(1, Math.round(life*perDay));
-  const dates=(USES[p.id]||[]).filter(d=>d>=opened);
-  const used=dates.length;
-  const cutoff=addDays(-28);
-  const openedDays=Math.floor((Date.now()-new Date(opened+'T00:00'))/86400000)+1;
-  const win=Math.max(1,Math.min(28,openedDays));
-  const recent=dates.filter(d=>d>=cutoff).length;
-  const rate = recent>0 ? recent/win : perDay;      // no recent data → assume the plan
+  const TR=trackedDays();
+  const perDate={};
+  (USES[p.id]||[]).forEach(d=>{ if(d>=opened) perDate[d]=(perDate[d]||0)+1; });
+  const today=todayISO(), cutoff=addDays(-28);
+  let used=0, assumed=0, recent=0, win=0;
+  const d=new Date(opened+'T00:00');
+  while(isoOf(d)<=today){
+    const iso=isoOf(d);
+    const n = TR[iso] ? (perDate[iso]||0) : perDay;   // untracked day → assume the plan
+    if(!TR[iso]) assumed+=perDay;
+    used+=n;
+    if(iso>=cutoff){ recent+=n; win++; }
+    d.setDate(d.getDate()+1);
+  }
+  const rate = win>0 && recent>0 ? recent/win : perDay;
   const left=budget-used;
-  return {budget, used, left, rate, base, days:Math.round(left/rate), pct:Math.max(0,Math.min(100,Math.round(used/budget*100)))};
+  return {budget:Math.round(budget), used:Math.round(used), assumed:Math.round(assumed), left, rate, base,
+          days:Math.round(left/rate), pct:Math.max(0,Math.min(100,Math.round(used/budget*100)))};
 }
 function currentRun(list){                                        // consecutive days ending at the newest skip
   if(!list.length) return 0;
@@ -1872,11 +1897,12 @@ function renderProducts(){
                 : `<b>~${u.days} days</b> of usage left`;
       const perWeek=(u.rate*7);
       const cadenceTxt = perWeek>=6.5 ? 'daily' : `${perWeek>=1?perWeek.toFixed(1):perWeek.toFixed(2)}×/week`;
+      const estTxt = u.assumed>0 ? ` · ${u.assumed} estimated` : '';
       usage=`<div class="prod-usage">
         <div class="usage-row"><div class="status">${status}</div>
           <button class="btn-sm opened" data-editopen="${p.id}">opened ${opened.slice(5)}</button></div>
         <div class="gauge"><div class="g" style="width:${u.pct}%;background:${col}"></div></div>
-        <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.01em">${u.used} of ${u.budget} uses · ${cadenceTxt}</div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.01em">${u.used} of ${u.budget} uses · ${cadenceTxt}${estTxt}</div>
       </div>`;
     } else {
       usage=`<div class="prod-usage"><div class="usage-row">
@@ -2538,7 +2564,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
-  html+=`<div class="ver-foot">v9 \u00b7 skin ratings</div>`;
+  html+=`<div class="ver-foot">v10 \u00b7 backdated usage</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 

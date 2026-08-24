@@ -1,5 +1,5 @@
 /* le régime — offline service worker */
-const CACHE = 'le-regime-v9';
+const CACHE = 'le-regime-v10';
 const ASSETS = [
   './',
   './index.html',
