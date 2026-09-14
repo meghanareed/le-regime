@@ -20,7 +20,7 @@ An offline-capable phone app for running your daily routines, managing the A313 
 
 - **Today** — a **Tonight** card shows your plan for the day: which phase week you're in, whether tonight is an A313 night, and the exact AM/PM checklist. Tap steps to complete them; the pharmacy cross fills when the day is done, and your streak builds.
 - **Routines** — all four evening variants (A313 / off-night / barrier-rest) plus morning, and seasonal + travel + maintenance guidance.
-- **Products** — your shelf with star ratings and **usage management**: mark a product "opened" and it estimates how many days of use remain and flags when to reorder. **Add your own products** with the *Add a product* button (name, brand, life estimate, and optionally which routines it joins so it shows up in your checklist), and **remove** ones you don't use — built-ins go to a *Removed* list you can restore from; custom ones delete outright.
+- **Products** — your shelf with star ratings and **usage management**: mark a product "opened" and it estimates how many days of use remain and flags when to reorder. The estimate is a model — bottle life × how often the plan uses the product — so **tap the opened-date chip to correct it**: set the real number of days one bottle lasts *you* (the defaults assume a textbook dose, which nobody applies), or hit **Start a new bottle today** when you replace one. Your figure is remembered per product and is shown on the card as *N-day bottle (yours)*. **Add your own products** with the *Add a product* button (name, brand, life estimate, and optionally which routines it joins so it shows up in your checklist), and **remove** ones you don't use — built-ins go to a *Removed* list you can restore from; custom ones delete outright.
 - **More** — troubleshooting flows, the science in plain English, lifestyle tips, setup (A313 start date, tonight override), and a **Backup & updates** section: **Export** a `.json` backup, **Import** one back, or **Copy my data for Claude** to paste into chat. This is the update loop — when Claude sends a new `index.html`, replace the file, open the app, and *Import* your backup to carry every log and custom product across.
 - **Progress** — a quick daily log with skin-state tags, a "what to expect" timeline (week 2 → 1 year) that highlights where you are now, and your journal. **Logging a symptom tag can reshape your plan automatically:** log `red`/`stinging` and it offers a *barrier rest* (cleanse + moisturize only) for the next few nights; log `peeling`/`dry` and it offers to *ease A313* down one frequency step for the rest of the week or 7 days; log `breakout`/`purging` and it reassures you it's likely normal purging and to hold steady (no cut). Accepting rewrites your upcoming evenings, shows a banner on Today, and gives you an **End early** button. All of this runs in the app — no need to regenerate anything.
 - **More** — troubleshooting flows (dry / peeling / burning / red / purging / sensitive), the science in plain English, lifestyle tips, and setup (A313 start date, tonight override, backup/reset).
@@ -52,6 +52,12 @@ When skin is raw, stinging or reactive, **More → Setup → Reintroduction ramp
 
 While it runs, the Today tab shows only the steps that belong to that stage, so there is nothing to remember. Skips, streak, journal and backups all keep working, and the **Routines** tab still shows the full routines for reference.
 
+### After the ramp
+
+Sébium does not simply reappear on every off night when the ramp ends — it is capped at **two nights a week, never two nights running**, T-zone only. The cap is a property of the routine step (`cap:{max:2,gap:2}`), not a fixed pair of weekdays: which nights are free moves with the A313 phase, so a hard-coded Mon/Thu would quietly fall to zero once both became retinoid nights. The app walks each week from Sunday and takes the first two nights that actually run that routine. In the Consolidate phase (A313 nightly) there are no free nights, so it correctly pauses until Maintenance.
+
+The cap only applies from the day it arrived (`cadenceFrom`, pinned at first load). Logged ticks are stored as positions in an evening's step list, so a rule that changed the shape of past evenings would silently re-label nights you had already ticked — the pin makes that impossible.
+
 Starting the ramp also moves the **A313 start date** to the day after it ends, so the 12-week plan restarts cleanly at two nights a week instead of resuming mid-phase. Ticks already logged today are carried over by product, not by position, so nothing is lost when the step list shrinks. Barrier-rest and ease-off adjustments are ignored while a ramp is active — the ramp supersedes them.
 
 To stop early: **End** from the banner or **View plan → End the ramp**. Routines go back to normal immediately; A313 stays paused until its start date, which you can bring forward in Setup.
@@ -79,7 +85,7 @@ Because it's a service-worker PWA, it must be served over **https** (GitHub Page
 ## Editing your plan
 
 - **Add or remove products from inside the app** (Products tab) — no code needed. Custom products can be attached to any routine and are included in exports.
-- The built-in **products** and **routines** are defined at the top of the `<script>` in `index.html` (`PRODUCTS`, `ROUTINES`) if you want to change the defaults themselves. Edit text, amounts, areas, or `lifeDays` (usage estimate) there.
+- The built-in **products** and **routines** are defined at the top of the `<script>` in `index.html` (`PRODUCTS`, `ROUTINES`) if you want to change the defaults themselves. Edit text, amounts, areas, or `lifeDays` (the default usage estimate — per-product overrides set in the app live in `S.life` and win) there. A step can also carry `cap:{max,gap}` to hold a product to at most `max` nights a week with at least `gap` days between them.
 - **A313 phases** are in the `PHASES` array — change frequency, week ranges, or which weekdays are A313 nights.
 
 ## Moving to a new version of the app

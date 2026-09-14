@@ -573,7 +573,7 @@ const PRODUCTS_MEGHAN = [
    note:'The engine of the plan. Dry skin only, pea-size, A313 nights.'},
   {id:'sebium', name:'Sébium Pore Refiner', brand:'Bioderma', role:'Pore refiner',
    color:'#6E9BC0', stars:3, size:'30 ml', lifeDays:120,
-   note:'Nose & T-zone where pores show most. Non-A313 nights.'},
+   note:'Nose & T-zone where pores show most. Capped at two nights a week — it is the prime suspect for the barrier damage.'},
   {id:'xeracalm', name:'XeraCalm AD Lipid-Replenishing Balm', brand:'Avène', role:'Moisturizer + barrier',
    color:'#2FA36B', stars:5, size:'200 ml', lifeDays:75,
    note:'Daily moisturizer and barrier-repair treatment. Doubles as the sandwich layer.'},
@@ -686,7 +686,8 @@ const ROUTINES_MEGHAN = {
   recovery:{ id:'recovery', label:'Evening · off night', icon:'moon', tag:'treat + refine', steps:[
     step('toleriane',{name:'Cleanse',amount:'small pump',area:'face'}),
     step('cleanance',{name:'Spot treat',amount:'thin layer',area:'chin · jaw',warm:'acne zones only'}),
-    step('sebium',{name:'Pore refiner',amount:'thin layer',area:'nose · T-zone'}),
+    step('sebium',{name:'Pore refiner',amount:'thin layer',area:'nose · T-zone',cap:{max:2,gap:2},
+         note:'Twice a week at most, never two nights running, T-zone only. It is the prime suspect for the barrier damage, so it does not go back to every off night.'}),
     step('xeracalm',{name:'Moisturize',amount:'pea–almond',area:'face'}),
   ]},
   rest:{ id:'rest', label:'Evening · barrier rest', icon:'moon', tag:'calm & repair', steps:[
@@ -733,7 +734,7 @@ const RAMP_MEGHAN = {
      micro:'Two A313 nights, five days apart, both buffered and short-contact. Nothing else changes.',
      a313Note:'Short contact tonight: XeraCalm \u2192 pea of A313 \u2192 XeraCalm, then wash it off after 30 minutes. Sandwich it every single time this stage.'},
   ],
-  after:'S\u00e9bium comes back after the ramp \u2014 twice a week at most, T-zone only. The A313 schedule picks up at 2 nights a week from your first buffered night.'
+  after:'S\u00e9bium comes back after the ramp capped at twice a week, never two nights running, T-zone only \u2014 and stays capped. The A313 schedule picks up at 2 nights a week from your first buffered night.'
 };
 const SEASONAL_MEGHAN = [
   ['Travel','Simplify to survive transit & hard water.',[
@@ -972,6 +973,11 @@ function normalize(s){
   s.overrides = s.overrides||{}; s.adjustments = s.adjustments||[];
   s.customProducts = s.customProducts||[]; s.hidden = s.hidden||[];
   s.ramp = s.ramp || null;                      // reintroduction ramp, when one is running
+  s.life = s.life || {};                        // per-product bottle-life overrides, in days
+  /* A step cap (Sébium, twice a week) changes the shape of an evening's step list, and a step
+     list is what logged tick indices point at. Pin the rule to the day it arrived so it can
+     never reach back and re-label a night you already ticked. */
+  s.cadenceFrom = s.cadenceFrom || todayISO();
   return s;
 }
 function loadState(){
@@ -1265,10 +1271,12 @@ function usesByProduct(){
 /* expected applications per calendar day under the plain plan (no ramp, no rest, no ease) */
 function baselineRate(pid){
   const t=todayISO();
-  const cnt=key=>{ try{ return effectiveSteps(key,t,{raw:true}).filter(s=>s.p===pid).length; }catch(e){ return 0; } };
+  const stepsOf=key=>{ try{ return effectiveSteps(key,t,{raw:true}).filter(s=>s.p===pid); }catch(e){ return []; } };
   let frac=3/7;
   try{ const ph=phaseForWeek(weekOfPlan(t)); frac=Math.min(1,(ph.nights||[]).length/7); }catch(e){}
-  return cnt('morning') + cnt('a313')*frac + cnt('recovery')*(1-frac);
+  const share={morning:1, a313:frac, recovery:1-frac};
+  return Object.keys(share).reduce((rate,key)=>rate + stepsOf(key)
+    .reduce((n,s)=>n + (s.cap ? Math.min(s.cap.max/7, share[key]) : share[key]), 0), 0);
 }
 /* A day counts as tracked if it holds any tick or any skip. Empty shells and days that
    pre-date your logging are untracked — the product was still being used on those days,
@@ -1286,8 +1294,10 @@ function trackedDays(){
   return set;
 }
 let _trackedCache=null;
+function lifeOf(p){ const v=(S.life||{})[p.id]; return (v>0?v:null) || p.lifeDays || 90; }
+function lifeIsCustom(p){ const v=(S.life||{})[p.id]; return v>0 && v!==(p.lifeDays||90); }
 function usageFor(p, opened, USES){
-  const life=p.lifeDays||90;
+  const life=lifeOf(p);
   const base=baselineRate(p.id);
   const perDay = base>0 ? base : 1;                 // not in any routine → fall back to daily
   const budget = Math.max(1, Math.round(life*perDay));
@@ -1348,10 +1358,33 @@ function productActive(cp, dateStr=todayISO()){
   }
   return true;
 }
+/* "Twice a week at most" — a cap on how many of a week's eligible nights a step may claim.
+   Weekdays alone cannot express this: which nights are free moves with the A313 phase, so a
+   fixed Mon/Thu would quietly fall to zero once both become retinoid nights. Instead, walk the
+   week from Sunday, take the first `max` nights that actually run this routine, and keep at
+   least `gap` days between them. */
+function capSlots(pid, key, dateStr, cap){
+  const d=new Date(dateStr+'T00:00');
+  const sun=new Date(d); sun.setDate(sun.getDate()-d.getDay());
+  const picked=[]; let last=null;
+  for(let i=0;i<7 && picked.length<cap.max;i++){
+    const day=new Date(sun); day.setDate(day.getDate()+i);
+    const iso=isoOf(day);
+    if(eveningRoutineKey(iso)!==key) continue;             // not this routine's night
+    const st=rampStage(iso);
+    if(st){ const allow=rampAllow(key,iso); if(allow && !allow.includes(pid)) continue; }
+    if(last!==null && (i-last)<cap.gap) continue;          // too soon after the last one
+    picked.push(iso); last=i;
+  }
+  return picked;
+}
 function effectiveSteps(key, dateStr=todayISO(), opts={}){
   let base = ROUTINES[key].steps
     .map(s=>{ const rid=resolveProduct(s.p,dateStr); return rid===s.p ? s : {...s, p:rid, base:s.p}; })
     .filter(s=>!isHidden(s.p) && P[s.p]);
+  if(!opts.raw && dateStr >= (S.cadenceFrom||todayISO())){   // step cadence, e.g. Sébium 2×/week
+    base = base.filter(s=>!s.cap || capSlots(s.base||s.p, key, dateStr, s.cap).includes(dateStr));
+  }
   const st = opts.raw ? null : rampStage(dateStr);
   if(st){
     const allow = rampAllow(key, dateStr);
@@ -1839,6 +1872,16 @@ function renderRoutines(){
   });
   v.innerHTML=html;
 }
+const DOWS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* what the routines say about how often a catalogue product runs */
+function stepCadence(pid){
+  for(const k of Object.keys(ROUTINES)){
+    const st=(ROUTINES[k].steps||[]).find(x=>x.p===pid && x.cap);
+    if(st) return capLabel(st.cap);
+  }
+  return null;
+}
+function capLabel(cap){ return (cap.max===1?'once':cap.max===2?'twice':cap.max+'×')+' a week at most'; }
 function staticRoutine(key){
   const r=ROUTINES[key];
   const icon=r.icon==='sun'?SUN:MOON;
@@ -1848,7 +1891,7 @@ function staticRoutine(key){
     steps+=`<div class="step"><div class="check" style="border-radius:50%;width:22px;height:22px;border-color:var(--line-soft)"><span class="mono" style="font-size:10px;color:var(--ink-faint)">${i+1}</span></div>
       <div class="step-body"><div class="name">${s.name}</div>
       <div class="prod">${prod.name}</div>
-      <div class="step-meta">${s.amount?`<span class="tag">${s.amount}</span>`:''}${s.area?`<span class="tag area">${s.area}</span>`:''}${s.warm?`<span class="tag warm">${s.warm}</span>`:''}${s.custom?`<span class="tag" style="background:var(--green-tint);color:#1C6A45">yours</span>`:''}</div>
+      <div class="step-meta">${s.amount?`<span class="tag">${s.amount}</span>`:''}${s.area?`<span class="tag area">${s.area}</span>`:''}${s.warm?`<span class="tag warm">${s.warm}</span>`:''}${s.cap?`<span class="tag" style="background:var(--blue-tint);color:#2E5677">${capLabel(s.cap)}</span>`:''}${s.custom?`<span class="tag" style="background:var(--green-tint);color:#1C6A45">yours</span>`:''}</div>
       ${s.note?`<div class="step-note">${s.note}</div>`:''}</div></div>`;
   });
   return `<div class="routine"><div class="routine-head" style="cursor:default">
@@ -1868,13 +1911,15 @@ function renderProducts(){
   const USES=usesByProduct();
   let html=`<button class="btn ghost" id="addProdBtn" style="margin:6px 0 14px;display:flex;align-items:center;justify-content:center;gap:8px">
     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Add a product</button>`;
-  html+='<div class="section-label">shelf · tap “opened” to track usage</div>';
+  html+='<div class="section-label">shelf · tap the date to set bottle life</div>';
   catalogue().forEach(p=>{
     const opened=S.opened[p.id];
     const sinfo=subInfo(p.id);
     const inRoutines=(p.routines||[]).length ? `<span class="prole" style="color:#1C6A45"> · in ${(p.routines||[]).length} routine${p.routines.length>1?'s':''}</span>`:'';
-    const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const DOW=DOWS;
     let cadence='';
+    const capped=!p.custom && stepCadence(p.id);
+    if(capped) cadence=`<div class="cad-row"><span class="cad">${capped}</span></div>`;
     if(p.custom){
       const bits=[];
       if(p.freq==='asneeded') bits.push('<span class="cad asneeded">as needed</span>');
@@ -1898,11 +1943,12 @@ function renderProducts(){
       const perWeek=(u.rate*7);
       const cadenceTxt = perWeek>=6.5 ? 'daily' : `${perWeek>=1?perWeek.toFixed(1):perWeek.toFixed(2)}×/week`;
       const estTxt = u.assumed>0 ? ` · ${u.assumed} estimated` : '';
+      const lifeTxt = lifeIsCustom(p) ? ` · ${lifeOf(p)}-day bottle (yours)` : '';
       usage=`<div class="prod-usage">
         <div class="usage-row"><div class="status">${status}</div>
           <button class="btn-sm opened" data-editopen="${p.id}">opened ${opened.slice(5)}</button></div>
         <div class="gauge"><div class="g" style="width:${u.pct}%;background:${col}"></div></div>
-        <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.01em">${u.used} of ${u.budget} uses · ${cadenceTxt}${estTxt}</div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.01em">${u.used} of ${u.budget} uses · ${cadenceTxt}${estTxt}${lifeTxt}</div>
       </div>`;
     } else {
       usage=`<div class="prod-usage"><div class="usage-row">
@@ -2050,22 +2096,54 @@ function renderChangeLog(){
   }).join('');
 }
 
+/* The usage gauge is a model, not a measurement: bottle life \u00d7 how often the plan uses
+   the product. Both halves are editable, because the stock figure assumes a textbook dose
+   and nobody applies a textbook dose. */
 function editOpened(id){
-  const p=P[id]||{name:'this product'};
+  const p=P[id]||{name:'this product', lifeDays:90};
   const cur=S.opened[id]||todayISO();
-  let val=cur;
+  const def=p.lifeDays||90;
+  let val=cur, life=lifeOf(p);
+  const preview=(ov)=>{
+    const el=ov.querySelector('#bPrev'); if(!el) return;
+    const stash=(S.life||{})[id];
+    S.life[id]=life;                                  // model the pending value, then put it back
+    const u=usageFor(p, val||cur, usesByProduct());
+    if(stash===undefined) delete S.life[id]; else S.life[id]=stash;
+    const perWeek=u.rate*7;
+    const when = u.left<=0 ? 'reads as empty already'
+               : u.days>365 ? ('about '+Math.round(u.days/30)+' months left')
+               : ('about '+u.days+' days left \u00b7 empty around '+fmtShort(addDays(u.days)));
+    el.innerHTML=`<b>${u.used} of ${u.budget} uses</b> \u00b7 ${perWeek>=6.5?'daily':(perWeek>=1?perWeek.toFixed(1):perWeek.toFixed(2))+'\u00d7/week'}<br>${when}`;
+  };
   showModal({
-    title:'Opened date',
-    body:`<p style="font-size:13px;color:var(--ink-soft);line-height:1.55;margin-bottom:12px">When did you start using <b>${p.name}</b>? The usage gauge counts forward from this date.</p>
-      <input type="date" id="opDate" value="${cur}" max="${todayISO()}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);-webkit-appearance:none">`,
+    title:'Bottle',
+    body:`<p style="font-size:13px;color:var(--ink-soft);line-height:1.55;margin-bottom:14px"><b>${p.name}</b><br>The gauge estimates \u2014 it counts days since you opened it and assumes you used the product on plan. If it disagrees with the actual bottle, the bottle is right. Stretch the life to match what you really get out of one.</p>
+      <label class="fl">Opened</label>
+      <input type="date" id="opDate" value="${cur}" max="${todayISO()}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);-webkit-appearance:none;margin-bottom:11px">
+      <label class="fl">How long one ${p.size?p.size+' ':''}bottle lasts you</label>
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+        <input class="fi" type="number" id="bLife" min="1" max="2000" step="1" value="${life}" style="margin:0;flex:1">
+        <span style="font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--ink-faint);flex:none">days</span>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);line-height:1.5;margin-bottom:13px">Plan assumes ${def} days${p.size?' for '+p.size:''}${lifeIsCustom(p)?' \u00b7 yours is set to '+life:''}</div>
+      <div id="bPrev" style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;padding:11px 12px;border:1px solid var(--line-soft);border-radius:11px;background:var(--bg)"></div>`,
     onMount:ov=>{
-      const i=ov.querySelector('#opDate');
-      const grab=()=>{ val=i.value; };
-      i.addEventListener('input',grab); i.addEventListener('change',grab);
+      const i=ov.querySelector('#opDate'), l=ov.querySelector('#bLife');
+      const grab=()=>{ val=i.value; life=Math.max(1,parseInt(l.value)||def); preview(ov); };
+      ['input','change'].forEach(ev=>{ i.addEventListener(ev,grab); l.addEventListener(ev,grab); });
+      preview(ov);
     },
     actions:[
       {label:'Save', cls:'primary', onClick:()=>{
-        if(val){ S.opened[id]=val; save(); renderProducts(); toast('Opened '+fmtShort(val)); }
+        if(val) S.opened[id]=val;
+        if(life===def) delete S.life[id]; else S.life[id]=life;
+        save(); renderProducts(); toast('Bottle updated');
+      }},
+      {label:'Start a new bottle today', onClick:()=>{
+        S.opened[id]=todayISO();
+        if(life===def) delete S.life[id]; else S.life[id]=life;
+        save(); renderProducts(); toast('New bottle \u00b7 opened '+fmtShort(todayISO()));
       }},
       {label:'Clear opened date', cls:'ghost', onClick:()=>{
         delete S.opened[id]; save(); renderProducts(); toast('Opened date cleared');
@@ -2564,7 +2642,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
-  html+=`<div class="ver-foot">v10 \u00b7 backdated usage</div>`;
+  html+=`<div class="ver-foot">v11 \u00b7 bottle life \u00b7 S\u00e9bium taper</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
