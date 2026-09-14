@@ -974,6 +974,7 @@ function normalize(s){
   s.customProducts = s.customProducts||[]; s.hidden = s.hidden||[];
   s.ramp = s.ramp || null;                      // reintroduction ramp, when one is running
   s.life = s.life || {};                        // per-product bottle-life overrides, in days
+  s.hold = s.hold || null;                      // standing A313 frequency, overriding the phase calendar
   /* A step cap (Sébium, twice a week) changes the shape of an evening's step list, and a step
      list is what logged tick indices point at. Pin the rule to the day it arrived so it can
      never reach back and re-label a night you already ticked. */
@@ -1039,6 +1040,36 @@ function weekOfPlan(dateStr=todayISO()){
 function planStarted(dateStr=todayISO()){ return dateStr >= S.start; }   // A313 has begun
 function trackStart(){ return S.trackStart || S.start; }
 function tracking(dateStr=todayISO()){ return dateStr >= trackStart(); }  // history exists
+/* A standing A313 frequency — "stay at N nights until I say otherwise".
+   Unlike rest/ease it has no end date: the phase calendar keeps advancing underneath, but the
+   frequency it asks for is ignored until the hold is lifted. Weekdays come from the profile's
+   own phase table wherever it defines that frequency, so a held 2 is Tue & Sat for Meghan and
+   Mon & Thu for Mom, exactly as their plans start. */
+const FREQ_NIGHTS={0:[], 1:[3], 2:[2,6], 3:[1,3,5], 4:[0,2,4,6], 5:[0,1,2,4,5], 6:[0,1,2,3,4,5], 7:[0,1,2,3,4,5,6]};
+function nightsForFreq(n){
+  const ph=PHASES.find(p=>p.freq===n);
+  return ph ? ph.nights : (FREQ_NIGHTS[n]||[]);
+}
+function activeHold(dateStr=todayISO()){
+  const h=S.hold;
+  return (h && h.nights!=null && dateStr>=h.from) ? h : null;
+}
+/* what the plan wanted instead — the point of a hold is that you can see what you are refusing */
+function holdVsPlan(hold, ph, w){
+  if((ph.nights||[]).length !== hold.nights) return 'plan says '+ph.desc;
+  const nx = PHASES.find(p=>p.wk[0]>w && (p.nights||[]).length!==hold.nights);
+  return nx ? ('plan would move to '+nx.desc+' in wk '+nx.wk[0]) : 'matches the plan for now';
+}
+function holdLabel(n){
+  return n===0 ? 'A313 paused' : n===7 ? 'held nightly'
+       : 'held at '+n+' night'+(n>1?'s':'')+' / week';
+}
+function setHold(n){
+  if(n===null || n===''){ S.hold=null; }
+  else S.hold={nights:+n, from:todayISO(), created:Date.now()};
+  save(); renderTopbar(); switchTab('today');
+  toast(S.hold ? holdLabel(S.hold.nights) : 'Back on the plan schedule');
+}
 function nightType(dateStr=todayISO()){
   if(S.overrides[dateStr]) return S.overrides[dateStr];        // manual single-night override wins
   const rn = rampNight(dateStr);
@@ -1049,10 +1080,12 @@ function nightType(dateStr=todayISO()){
   const w = weekOfPlan(dateStr);
   const ph = phaseForWeek(w);
   const dow = new Date(dateStr+'T00:00').getDay();
-  let nights = ph.nights;
+  const hold = activeHold(dateStr);
+  let nights = hold ? nightsForFreq(hold.nights) : ph.nights;
   if(adj && adj.kind==='ease'){                                // ease = drop A313 one frequency step
-    const i = PHASES.indexOf(ph);
-    nights = i<=0 ? [] : PHASES[i-1].nights;                   // at the lowest phase, skip A313 entirely
+    if(hold) nights = nightsForFreq(Math.max(0, hold.nights-1));  // from the held frequency, not the phase
+    else { const i = PHASES.indexOf(ph);
+           nights = i<=0 ? [] : PHASES[i-1].nights; }          // at the lowest phase, skip A313 entirely
   }
   return nights.includes(dow) ? 'a313' : 'recovery';
 }
@@ -1273,7 +1306,8 @@ function baselineRate(pid){
   const t=todayISO();
   const stepsOf=key=>{ try{ return effectiveSteps(key,t,{raw:true}).filter(s=>s.p===pid); }catch(e){ return []; } };
   let frac=3/7;
-  try{ const ph=phaseForWeek(weekOfPlan(t)); frac=Math.min(1,(ph.nights||[]).length/7); }catch(e){}
+  try{ const h=activeHold(t), ph=phaseForWeek(weekOfPlan(t));
+       frac=Math.min(1,((h?nightsForFreq(h.nights):ph.nights)||[]).length/7); }catch(e){}
   const share={morning:1, a313:frac, recovery:1-frac};
   return Object.keys(share).reduce((rate,key)=>rate + stepsOf(key)
     .reduce((n,s)=>n + (s.cap ? Math.min(s.cap.max/7, share[key]) : share[key]), 0), 0);
@@ -1471,8 +1505,10 @@ function renderToday(){
   const track = planTrack(w);
   const adj = activeAdjustment(iso);
   const started = planStarted(iso);
+  const hold = activeHold(iso);
   const freqLabel = !started ? 'starts '+fmtShort(S.start)
-                  : adj ? (adj.kind==='rest' ? 'paused \u00b7 barrier rest' : 'eased one step') : ph.desc;
+                  : adj ? (adj.kind==='rest' ? 'paused \u00b7 barrier rest' : 'eased one step')
+                  : hold ? holdLabel(hold.nights) : ph.desc;
   const rst = rampStage(iso);
   const R = rampDef();
   const phaseLine = rst ? ('ramp \u00b7 stage '+rst.n+' of '+R.stages.length)
@@ -1499,6 +1535,14 @@ function renderToday(){
       <div class="adj-tx"><b>${rst.name} \u00b7 stage ${rst.n} of ${R.stages.length}</b>
         <span>day ${rampDay(iso)} of ${R.days} \u00b7 ${nx?('next: '+nx.name.toLowerCase()+' '+fmtShort(rampDateOf(nx.from))):('ends '+fmtShort(rampDateOf(R.days)))}</span></div>
       <button class="adj-end" id="rampInfo">Plan</button>
+    </div>`;
+  }
+  if(!rst && !adj && hold){
+    banner = `<div class="adj-banner ease">
+      <div class="adj-ic">${EASE_IC}</div>
+      <div class="adj-tx"><b>${holdLabel(hold.nights)}</b>
+        <span>since ${fmtShort(hold.from)} \u00b7 ${holdVsPlan(hold, ph, w)}</span></div>
+      <button class="adj-end" id="holdEnd">Resume</button>
     </div>`;
   }
   if(adj){
@@ -1555,6 +1599,8 @@ function renderToday(){
   if(endBtn) endBtn.addEventListener('click',endAdjustment);
   const rampBtn=v.querySelector('#rampInfo');
   if(rampBtn) rampBtn.addEventListener('click',openRampSheet);
+  const holdBtn=v.querySelector('#holdEnd');
+  if(holdBtn) holdBtn.addEventListener('click',()=>setHold(null));
   bindSkin(v, iso);
   bindRoutineCards(v, iso);
 }
@@ -2578,6 +2624,7 @@ function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','
 /* ---- MORE (troubleshoot / science / settings) ---- */
 function renderMore(){
   const v=document.getElementById('v-more');
+  const hold=activeHold(), curPh=phaseForWeek(weekOfPlan());
   let html='<div class="section-label">if things go sideways</div>';
   TROUBLE.forEach(t=>{
     html+=`<details class="trouble"><summary><span class="sx" style="background:${t.sx}"></span>${t.t}<span class="plus">+</span></summary>
@@ -2609,6 +2656,12 @@ function renderMore(){
       <input type="date" id="startDate" value="${S.start}"></div>
     <div class="set-row"><div><div class="sl">Reintroduction ramp</div><div class="sd">${rampOn()? (rampStage()? ('day '+rampDay()+' of '+rampDef().days+' \u00b7 '+rampStage().name) : 'finished \u00b7 tap to close it out') : '4 weeks, one product at a time'}</div></div>
       <button class="adj-end" id="rampBtn">${rampOn()?'View plan':'Start'}</button></div>
+    <div class="set-row"><div><div class="sl">A313 frequency</div><div class="sd">${hold?('held \u00b7 plan would say '+curPh.desc):('following the plan \u00b7 '+curPh.desc)}</div></div>
+      <select id="holdSel" style="font-family:'Spline Sans Mono';font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card);color:var(--ink)">
+        <option value="">follow the plan</option>
+        ${[7,5,4,3,2,1].map(n=>`<option value="${n}" ${hold&&hold.nights===n?'selected':''}>${n===7?'nightly':n+' night'+(n>1?'s':'')+' / week'}</option>`).join('')}
+        <option value="0" ${hold&&hold.nights===0?'selected':''}>pause A313</option>
+      </select></div>
     <div class="set-row"><div><div class="sl">Tonight\'s evening</div><div class="sd">Override the auto choice</div></div>
       <select id="ovr" style="font-family:'Spline Sans Mono';font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card);color:var(--ink)">
         <option value="">auto (${nightType()})</option>
@@ -2642,7 +2695,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
-  html+=`<div class="ver-foot">v11 \u00b7 bottle life \u00b7 S\u00e9bium taper</div>`;
+  html+=`<div class="ver-foot">v12 \u00b7 frequency hold</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
@@ -2661,6 +2714,9 @@ function renderMore(){
   v.querySelector('#trackDate').addEventListener('change',e=>{ S.trackStart=e.target.value; save(); renderTopbar(); toast('Tracking start updated'); });
   v.querySelector('#startDate').addEventListener('change',e=>{ S.start=e.target.value; save(); renderTopbar(); toast('A313 start updated'); });
   v.querySelector('#rampBtn').addEventListener('click',openRampSheet);
+  v.querySelector('#holdSel').addEventListener('change',e=>{
+    setHold(e.target.value===''?null:+e.target.value);
+  });
   v.querySelector('#ovr').value=S.overrides[todayISO()]||'';
   v.querySelector('#ovr').addEventListener('change',e=>{
     if(e.target.value) S.overrides[todayISO()]=e.target.value; else delete S.overrides[todayISO()];
