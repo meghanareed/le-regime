@@ -697,7 +697,15 @@ const ROUTINES_MEGHAN = {
 };
 
 /* ---------- A313 phase engine ---------- */
+/* The plan tops out at three nights a week: two for the first month, then three for good.
+   Version 2. Version 1 (below) built to nightly and is kept only so days logged under it
+   keep the evening they actually had. */
 const PHASES_MEGHAN = [
+  {wk:[1,4],   name:'Introduce',   freq:2, nights:[2,6],   desc:'2 nights / week', micro:'Tue & Sat, sandwiched. Let skin meet retinoids gently. Expect nothing dramatic yet.'},
+  {wk:[5,12],  name:'Build',       freq:3, nights:[1,3,5], desc:'3 nights / week', micro:'Only step up if the first month was calm. Purging usually peaks and fades here.'},
+  {wk:[13,999],name:'Maintenance', freq:3, nights:[1,3,5], desc:'3 nights / week', micro:'The long game. Three nights keeps results without over-taxing the barrier. Hold at two any time in Setup.'},
+];
+const PHASES_MEGHAN_V1 = [
   {wk:[1,2],   name:'Introduce',   freq:2, nights:[2,6],           desc:'2 nights / week',    micro:'Let skin meet retinoids gently. Expect nothing dramatic yet.'},
   {wk:[3,4],   name:'Build',       freq:3, nights:[1,3,5],         desc:'every other night',  micro:'If weeks 1–2 were calm, step up. Watch for tightness.'},
   {wk:[5,8],   name:'Establish',   freq:5, nights:[0,1,2,4,5],     desc:'5 nights / week',    micro:'Retinization is settling. Purging usually peaks and fades here.'},
@@ -750,13 +758,13 @@ const SEASONAL_MEGHAN = [
     'Reapply Anthelios every 2 hours outdoors; consider pausing A313 on heavy-sun holidays.',
     'Sweat + Cleanance can over-dry — spot only.']],
   ['Maintenance (post-week 12)','Your sustainable long game.',[
-    'A313 four nights a week keeps results without over-taxing the barrier.',
+    'A313 three nights a week keeps results without over-taxing the barrier. Two is fine too.',
     'Keep Vitamin C + SPF every morning — this is where anti-aging is actually won.',
     'Reassess products as they run out; repurchase the 5-star staples first.']],
 ];
 
 const TROUBLE_MEGHAN=[
-  {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>XeraCalm</b> morning, night, and a midday pea over tight areas.','Drop A313 by one frequency step (e.g. nightly → every other) for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
+  {sx:'var(--amber)',t:'Skin feels dry or tight',fix:['Layer <b>XeraCalm</b> morning, night, and a midday pea over tight areas.','Drop A313 by one frequency step (e.g. 3 nights → 2) for a week.','Try the <b>sandwich</b>: moisturizer → A313 → moisturizer on A313 nights.']},
   {sx:'var(--amber)',t:'Peeling or flaking',fix:['Do not pick or exfoliate — you\'ll damage new skin.','Buffer A313 with moisturizer underneath; skip Sébium & Cleanance until settled.','Hydrate generously; peeling means slow down, not push through.']},
   {sx:'var(--red)',t:'Burning or stinging',fix:['If it happens during application, your skin wasn\'t fully dry — wait 20 min next time.','Rinse off tonight if it\'s intense, moisturize, skip actives.','Use a smaller-than-pea amount when you resume.']},
   {sx:'var(--red)',t:'Redness or irritation',fix:['Pause all actives 2–3 nights: cleanse + XeraCalm only (the <b>barrier rest</b> evening).','Cool compress; avoid hot water and physical scrubs.','Reintroduce A313 at a lower frequency once calm.']},
@@ -905,11 +913,13 @@ const SEASONAL_MOM = [
 /* ---------- profile registry ---------- */
 const PROFILES = {
   meghan:{ key:'leRegime.v1',     name:'Meghan', products:PRODUCTS_MEGHAN, routines:ROUTINES_MEGHAN,
-           phases:PHASES_MEGHAN, trouble:TROUBLE_MEGHAN, science:SCIENCE_MEGHAN, seasonal:SEASONAL_MEGHAN,
+           phases:PHASES_MEGHAN, phasesVer:2, phasesHist:{1:PHASES_MEGHAN_V1},
+           trouble:TROUBLE_MEGHAN, science:SCIENCE_MEGHAN, seasonal:SEASONAL_MEGHAN,
            ramp:RAMP_MEGHAN,
            intro:"Your morning routine is the same every day. Evenings rotate based on where you are in the A313 plan — the Today tab always picks tonight's for you. Here are all of them for reference." },
   mom:{    key:'leRegime.v1.mom', name:'Mom',    products:PRODUCTS_MOM,    routines:ROUTINES_MOM,
-           phases:PHASES_MOM,    trouble:TROUBLE_MOM,    science:SCIENCE_MOM,    seasonal:SEASONAL_MOM,
+           phases:PHASES_MOM,    phasesVer:1,
+           trouble:TROUBLE_MOM,    science:SCIENCE_MOM,    seasonal:SEASONAL_MOM,
            ramp:RAMP_MOM,
            intro:"Your morning routine is the same every day. Evenings alternate between regular nights and A313 nights — the Today tab always picks tonight's for you. Here are all of them for reference." },
 };
@@ -938,7 +948,8 @@ function switchProfile(id){
   try{ localStorage.setItem(PROFILE_KEY,id); }catch(e){}
   location.search='?who='+id;      // reload cleanly under the new person
 }
-function phaseForWeek(w){ return PHASES.find(p=>w>=p.wk[0]&&w<=p.wk[1]) || PHASES[PHASES.length-1]; }
+function phaseForWeek(w, table=PHASES){ return table.find(p=>w>=p.wk[0]&&w<=p.wk[1]) || table[table.length-1]; }
+function phasesFor(pv){ return (ME.phasesHist && ME.phasesHist[pv]) || PHASES; }
 /* the tonight-card progress bar — a ramp toward week 12, then a live count toward the payoff milestones */
 function planTrack(w){
   if(w<=12) return {label:'12-week plan',  right:`${w} / 12`,        pct:Math.round(w/12*100), fill:'var(--amber)'};
@@ -979,6 +990,18 @@ function normalize(s){
      list is what logged tick indices point at. Pin the rule to the day it arrived so it can
      never reach back and re-label a night you already ticked. */
   s.cadenceFrom = s.cadenceFrom || todayISO();
+  /* Past evenings are worked out from the plan, not stored, so anything that changes the plan
+     (start date, hold, phase table, ramp) would re-label nights already ticked. planHist freezes
+     the plan as it was for each stretch of past days; rampPast keeps ended ramps. */
+  s.planHist = s.planHist || []; s.rampPast = s.rampPast || [];
+  const cur = ME.phasesVer || 1;
+  if((s.pv||1) < cur){
+    const y = addDays(-1);
+    const last = s.planHist[s.planHist.length-1];
+    if(Object.keys(s.logs).length && y >= s.trackStart && !(last && last.until >= y))
+      s.planHist.push({until:y, start:s.start, pv:s.pv||1, hold:s.hold?{...s.hold}:null});
+  }
+  s.pv = cur;
   return s;
 }
 function loadState(){
@@ -1031,13 +1054,28 @@ async function doBackup(silent){
 }
 
 /* ---------- date / phase helpers ---------- */
+/* the plan in force on a date: a frozen stretch of history, or the live plan */
+function planAt(dateStr=todayISO()){
+  return (S.planHist||[]).find(h=>dateStr<=h.until) || {start:S.start, pv:S.pv, hold:S.hold};
+}
+/* call before changing the start date, hold or phase table: fixes every past day as it is now */
+function freezePlan(){
+  const y=addDays(-1), h=S.planHist, last=h[h.length-1];
+  if(y < trackStart() || (last && last.until >= y)) return;
+  h.push({until:y, start:S.start, pv:S.pv, hold:S.hold?{...S.hold}:null});
+}
+/* run a plan change, keeping today's ticks attached to the same products */
+function changePlan(fn){
+  const t=todayISO(), oldAm=amSteps(t), oldPm=pmSteps(t);
+  freezePlan(); fn(); remapDayLog(t, oldAm, oldPm);
+}
 function weekOfPlan(dateStr=todayISO()){
-  const start = new Date(S.start+'T00:00');
+  const start = new Date(planAt(dateStr).start+'T00:00');
   const d = new Date(dateStr+'T00:00');
   const days = Math.floor((d - start)/86400000);
   return Math.max(1, Math.floor(days/7)+1);
 }
-function planStarted(dateStr=todayISO()){ return dateStr >= S.start; }   // A313 has begun
+function planStarted(dateStr=todayISO()){ return dateStr >= planAt(dateStr).start; }   // A313 has begun
 function trackStart(){ return S.trackStart || S.start; }
 function tracking(dateStr=todayISO()){ return dateStr >= trackStart(); }  // history exists
 /* A standing A313 frequency — "stay at N nights until I say otherwise".
@@ -1046,12 +1084,12 @@ function tracking(dateStr=todayISO()){ return dateStr >= trackStart(); }  // his
    own phase table wherever it defines that frequency, so a held 2 is Tue & Sat for Meghan and
    Mon & Thu for Mom, exactly as their plans start. */
 const FREQ_NIGHTS={0:[], 1:[3], 2:[2,6], 3:[1,3,5], 4:[0,2,4,6], 5:[0,1,2,4,5], 6:[0,1,2,3,4,5], 7:[0,1,2,3,4,5,6]};
-function nightsForFreq(n){
-  const ph=PHASES.find(p=>p.freq===n);
+function nightsForFreq(n, table=PHASES){
+  const ph=table.find(p=>p.freq===n);
   return ph ? ph.nights : (FREQ_NIGHTS[n]||[]);
 }
 function activeHold(dateStr=todayISO()){
-  const h=S.hold;
+  const h=planAt(dateStr).hold;
   return (h && h.nights!=null && dateStr>=h.from) ? h : null;
 }
 /* what the plan wanted instead — the point of a hold is that you can see what you are refusing */
@@ -1065,8 +1103,10 @@ function holdLabel(n){
        : 'held at '+n+' night'+(n>1?'s':'')+' / week';
 }
 function setHold(n){
-  if(n===null || n===''){ S.hold=null; }
-  else S.hold={nights:+n, from:todayISO(), created:Date.now()};
+  changePlan(()=>{
+    if(n===null || n===''){ S.hold=null; }
+    else S.hold={nights:+n, from:todayISO(), created:Date.now()};
+  });
   save(); renderTopbar(); switchTab('today');
   toast(S.hold ? holdLabel(S.hold.nights) : 'Back on the plan schedule');
 }
@@ -1078,14 +1118,15 @@ function nightType(dateStr=todayISO()){
   const adj = activeAdjustment(dateStr);
   if(adj && adj.kind==='rest') return 'rest';                  // barrier rest = every night is a rest night
   const w = weekOfPlan(dateStr);
-  const ph = phaseForWeek(w);
+  const table = phasesFor(planAt(dateStr).pv);                 // the phase table that was live that day
+  const ph = phaseForWeek(w, table);
   const dow = new Date(dateStr+'T00:00').getDay();
   const hold = activeHold(dateStr);
-  let nights = hold ? nightsForFreq(hold.nights) : ph.nights;
+  let nights = hold ? nightsForFreq(hold.nights, table) : ph.nights;
   if(adj && adj.kind==='ease'){                                // ease = drop A313 one frequency step
-    if(hold) nights = nightsForFreq(Math.max(0, hold.nights-1));  // from the held frequency, not the phase
-    else { const i = PHASES.indexOf(ph);
-           nights = i<=0 ? [] : PHASES[i-1].nights; }          // at the lowest phase, skip A313 entirely
+    if(hold) nights = nightsForFreq(Math.max(0, hold.nights-1), table);  // from the held frequency, not the phase
+    else { const lower = table.slice(0, table.indexOf(ph)).filter(p=>p.freq<ph.freq).pop();
+           nights = lower ? lower.nights : []; }               // at the lowest frequency, skip A313 entirely
   }
   return nights.includes(dow) ? 'a313' : 'recovery';
 }
@@ -1095,16 +1136,21 @@ function nightType(dateStr=todayISO()){
    back to the phase engine on the last day. */
 function rampDef(){ return ME.ramp || null; }
 function rampOn(){ return !!(S.ramp && S.ramp.start && rampDef()); }
+/* the ramp covering a date: the running one, or an ended one kept in rampPast */
+function rampRecFor(dateStr){
+  if(rampOn() && dateStr>=S.ramp.start) return S.ramp;
+  return (S.rampPast||[]).find(r=>dateStr>=r.start && dateStr<=r.end) || null;
+}
 function rampDay(dateStr=todayISO()){
-  if(!rampOn()) return 0;
-  return Math.floor((new Date(dateStr+'T00:00') - new Date(S.ramp.start+'T00:00'))/86400000) + 1;
+  const r=rampDef() && rampRecFor(dateStr); if(!r) return 0;
+  return Math.floor((new Date(dateStr+'T00:00') - new Date(r.start+'T00:00'))/86400000) + 1;
 }
 function rampDateOf(day){
   const d=new Date(S.ramp.start+'T00:00'); d.setDate(d.getDate()+(day-1)); return isoOf(d);
 }
 function rampStage(dateStr=todayISO()){
-  if(!rampOn()) return null;
-  const R=rampDef(), d=rampDay(dateStr);
+  const R=rampDef(); if(!R) return null;
+  const d=rampDay(dateStr);
   if(d<1 || d>R.days) return null;
   return R.stages.find(st=>d>=st.from && d<=st.to) || null;
 }
@@ -1138,8 +1184,14 @@ function activeAdjustment(dateStr=todayISO()){
   const hits = S.adjustments.filter(a=>dateStr>=a.from && dateStr<=a.until);
   return hits.length ? hits[hits.length-1] : null;             // most recent wins
 }
+/* end rest/ease from a date on, without erasing the nights they already shaped */
+function closeAdjustments(iso){
+  const y=new Date(iso+'T00:00'); y.setDate(y.getDate()-1); const prev=isoOf(y);
+  S.adjustments = S.adjustments
+    .filter(a=>a.from < iso)
+    .map(a=>a.until >= iso ? {...a, until:prev} : a);
+}
 function applyAdjustment(kind, until, reason){
-  S.adjustments = S.adjustments.filter(a=>a.until >= todayISO()); // clear expired
   S.adjustments.push({kind, from:todayISO(), until, reason, created:Date.now()});
   save();
   switchTab('today');
@@ -1187,8 +1239,9 @@ function startRamp(){
   const R=rampDef(); if(!R) return;
   const iso=todayISO();
   const oldAm=amSteps(iso), oldPm=pmSteps(iso);
+  freezePlan();                                            // past nights keep the plan they had
   S.ramp={id:R.id, start:iso, created:Date.now()};
-  S.adjustments=S.adjustments.filter(a=>a.until<iso);       // rest/ease are moot now
+  closeAdjustments(iso);                                   // rest/ease are moot now
   delete S.overrides[iso];
   S.start=rampDateOf(R.days+1);                            // A313 restarts the day after the ramp ends (history untouched)
   remapDayLog(iso, oldAm, oldPm);
@@ -1201,7 +1254,13 @@ function endRamp(){
     title:'End the ramp?',
     body:`Your routines go back to normal immediately. A313 stays paused until its start date (${fmtShort(S.start)}) \u2014 change that in Setup if you want it sooner.`,
     actions:[
-      {label:'End the ramp', cls:'primary', onClick:()=>{ S.ramp=null; save(); renderTopbar(); switchTab('today'); toast('Back to your normal plan'); }},
+      {label:'End the ramp', cls:'primary', onClick:()=>{
+        const t=todayISO(), oldAm=amSteps(t), oldPm=pmSteps(t);
+        const last=rampDateOf(rampDef().days), y=addDays(-1);
+        const end = last<y ? last : y;                     // the days actually run stay ramp days
+        if(end >= S.ramp.start) S.rampPast.push({id:S.ramp.id, start:S.ramp.start, end});
+        S.ramp=null; remapDayLog(t, oldAm, oldPm);
+        save(); renderTopbar(); switchTab('today'); toast('Back to your normal plan'); }},
       {label:'Keep going', cls:'ghost'}
     ]
   });
@@ -1224,8 +1283,7 @@ function openRampSheet(){
   }
 }
 function endAdjustment(){
-  const t=todayISO();
-  S.adjustments = S.adjustments.filter(a=>!(t>=a.from && t<=a.until));
+  closeAdjustments(todayISO());
   save(); switchTab('today'); toast('Back to your normal plan');
 }
 
@@ -2426,7 +2484,7 @@ function calendarHTML(){
     const iso=y+'-'+pad2(m+1)+'-'+pad2(d);
     const state=dayState(iso);
     const isToday = iso===todayISO();
-    const started = iso>=S.start;
+    const started = planStarted(iso);
     const a313 = started && nightType(iso)==='a313';
     const sk=daySkips(iso);
     cells+=`<button class="cday ${state} ${isToday?'today':''}" data-day="${iso}">
@@ -2695,7 +2753,7 @@ function renderMore(){
     <div class="sd" style="margin-top:10px;text-align:center">${GH.last?('Last backup · '+fmtShort(GH.last)):'No backup yet'}</div>
   </div>`;
   html+=`<button class="btn warn" id="resetBtn">Reset all data</button>`;
-  html+=`<div class="ver-foot">v12 \u00b7 frequency hold</div>`;
+  html+=`<div class="ver-foot">v13 \u00b7 3-night plan \u00b7 history pinned</div>`;
   html+=`<p class="disclaimer">This guide is educational and personal — not a substitute for individualized medical care. If a reaction is severe or persistent, see a dermatologist.</p>`;
   v.innerHTML=html;
 
@@ -2712,7 +2770,7 @@ function renderMore(){
     });
   });
   v.querySelector('#trackDate').addEventListener('change',e=>{ S.trackStart=e.target.value; save(); renderTopbar(); toast('Tracking start updated'); });
-  v.querySelector('#startDate').addEventListener('change',e=>{ S.start=e.target.value; save(); renderTopbar(); toast('A313 start updated'); });
+  v.querySelector('#startDate').addEventListener('change',e=>{ const nv=e.target.value; if(!nv) return; changePlan(()=>{ S.start=nv; }); save(); renderTopbar(); toast('A313 start updated'); });
   v.querySelector('#rampBtn').addEventListener('click',openRampSheet);
   v.querySelector('#holdSel').addEventListener('change',e=>{
     setHold(e.target.value===''?null:+e.target.value);

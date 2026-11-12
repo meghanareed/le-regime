@@ -41,13 +41,26 @@ A313 nights fall on **fixed weekdays** defined per phase (Mom starts Mon & Thu; 
 
 ## Holding the A313 frequency
 
-The phase engine escalates on a fixed calendar (2 → 3 → 5 → 7 → 4 nights a week). **More → Setup → A313 frequency** overrides that with a standing instruction: *stay at N nights until I say otherwise*. Pick anything from **pause A313** through **nightly**, or *follow the plan* to hand control back.
+The phase engine escalates on a fixed calendar. Meghan's plan is **2 nights a week for weeks 1–4, then 3 nights a week from week 5 onward** (it no longer builds to nightly). Mom's is 2 → 3 → 4. **More → Setup → A313 frequency** overrides that with a standing instruction: *stay at N nights until I say otherwise*. Pick anything from **pause A313** through **nightly**, or *follow the plan* to hand control back.
 
 Unlike barrier-rest and ease-off, a hold has **no end date**. The plan calendar keeps advancing underneath it — you still see your week and phase — but the frequency that phase asks for is ignored until you lift the hold. A banner on Today shows what is held and what the plan wanted instead (*"plan would move to every other night in wk 3"*), with a **Resume** button.
 
 Which weekdays a held frequency uses come from the profile's own phase table wherever it defines that frequency, so a held 2 is Tue & Sat for Meghan and Mon & Thu for Mom — exactly how each plan starts. Frequencies the table doesn't define fall back to an evenly spread default.
 
 Precedence: **barrier rest** (every night is a rest night) beats everything; an **ease-off** drops one step *below the held frequency* rather than below the phase's; a **ramp** supersedes all three; and a per-night override in Setup still wins for tonight only. The product usage gauge follows the held frequency too, so a hold at 2 nights doesn't keep estimating A313 at the phase's rate.
+
+## History never moves
+
+Past evenings aren't stored. The app works them out from the plan, so changing the plan used to re-label nights you had already ticked. Starting a ramp, for example, moved the A313 start date forward and wiped every past A313 night off the calendar.
+
+Now every change to the plan freezes the past first:
+
+- **Start date and frequency hold:** before either changes, the plan as it stood is saved for every day up to yesterday (`planHist`). Past days keep the week, phase and hold they actually had.
+- **Phase table:** each table is versioned (`phasesVer`). Days logged under the old 2 → 3 → 5 → 7 → 4 table keep using it.
+- **Ramps:** ending a ramp archives the days it actually ran (`rampPast`), so you can restart it without re-labeling the first run.
+- **Barrier rest / ease-off:** ending one early cuts it off at yesterday instead of deleting it. Expired ones are kept.
+
+Today is the one live day. When the plan changes mid-day, ticks already logged today are carried over by product.
 
 ## Reintroduction ramp
 
